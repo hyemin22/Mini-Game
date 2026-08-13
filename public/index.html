@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>파티 게임 (6인)</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-hero">
+<div id="app">
+  <button id="btn-game-leave" class="game-leave-btn hidden" type="button">게임 나가기</button>
+
+  <!-- LOGIN -->
+  <section id="view-login" class="view">
+    <h1>🔑 안혜민의 보물창고</h1>
+    <div class="card">
+      <p class="section-hint">닉네임과 전화번호로 로그인하면 모든 게임 점수가 계속 쌓여요!</p>
+      <input id="login-nickname" type="text" placeholder="닉네임" maxlength="10" />
+      <input id="login-phone" type="tel" placeholder="전화번호 (예: 01012345678)" maxlength="20" />
+      <button id="btn-login">시작하기</button>
+      <p id="login-error" class="error"></p>
+    </div>
+  </section>
+
+  <!-- MODE SELECT -->
+  <section id="view-mode-select" class="view hidden">
+    <div class="main-account-actions">
+      <button id="btn-logout-main" class="main-logout-btn" type="button">로그아웃</button>
+      <button id="btn-admin-open" class="admin-only-btn hidden" type="button">🛠️ 관리자 화면</button>
+    </div>
+    <button id="btn-theme-toggle" class="theme-toggle-btn" type="button">☀️ 화이트모드</button>
+    <button id="btn-notification-toggle" class="notification-toggle-btn" type="button">🔔 알림 켜기</button>
+    <div class="home-notice" role="status" aria-label="테스트 기간 공지">
+      <div class="home-notice-title">📢 테스트 기간 안내</div>
+      <p>현재 서비스는 테스트 기간입니다. 플레이 후 불편한 점이나 좋은 의견을 자유롭게 남겨주세요.</p>
+      <strong>🎁 좋은 피드백을 남겨주신 분께 선물을 드립니다!</strong>
+    </div>
+    <p id="mode-select-greeting" class="section-hint"></p>
+
+    <div class="home-side-dock home-side-dock-left" aria-label="홈 보조 메뉴">
+      <button id="btn-home-notice-toggle" class="home-side-toggle" type="button" aria-controls="home-notice-board" aria-expanded="false" title="게시판 열기">📢</button>
+    </div>
+    <div class="home-side-dock home-side-dock-right" aria-label="홈 정보 메뉴">
+      <button id="btn-home-profile-toggle" class="home-side-toggle" type="button" aria-controls="home-profile-panel" aria-expanded="false" title="프로필 열기">👤</button>
+      <button id="btn-home-ranking-toggle" class="home-side-toggle" type="button" aria-controls="home-ranking-panel" aria-expanded="false" title="랭킹 열기">🏆</button>
+      <button id="btn-home-tools-toggle" class="home-side-toggle" type="button" aria-controls="ranking-utility-buttons" aria-expanded="false" title="기능 열기">⚡</button>
+    </div>
+
+    <div class="home-quadrants">
+      <section id="home-profile-panel" class="home-panel home-profile-panel">
+        <div class="home-panel-heading"><div class="home-profile-actions"><button id="btn-open-friend-requests" class="friend-request-shortcut" type="button">📨 친구 요청 <b id="home-friend-request-count">0</b></button><button id="btn-open-profile" class="small-btn" type="button">프로필 수정</button></div></div>
+        <div class="home-profile-summary">
+          <div id="home-profile-avatar" class="avatar avatar-large"></div>
+          <div>
+            <h2 id="home-profile-name">-</h2>
+            <p id="home-profile-rank">순위 -위</p>
+            <p id="home-profile-score">누적 점수 0점</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="home-ranking-panel" class="home-panel home-ranking-panel">
+        <div class="home-panel-heading"><span>🏆 전체 랭킹</span></div>
+        <ul id="global-leaderboard-list" class="score-board"></ul>
+      </section>
+
+      <div id="ranking-utility-buttons" class="ranking-utility-buttons">
+        <button id="btn-open-person-db" type="button">🖼️ 인물 DB 추가</button>
+        <button id="btn-feedback-open" type="button">💬 서비스 피드백</button>
+        <button id="btn-quick-join" class="quick-join-btn" type="button">⚡ 빠른 참여</button>
+      </div>
+
+      <section class="home-panel home-games-panel">
+        <section class="game-category-panel category-quick">
+          <div class="game-category-heading"><span class="game-category-icon">☕</span><div><h2>친구들과<br>짧게 즐기기!</h2><p>가볍게 한 판 시작해요</p></div></div>
+          <div class="game-category-games">
+            <button id="mode-wordchain" data-mode="wordchain" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🔗</span><span class="game-mode-name">끝말잇기</span></button>
+            <button id="mode-coffee" data-mode="coffee" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">☕</span><span class="game-mode-name">커피쏘기</span></button>
+          </div>
+        </section>
+
+        <section class="game-category-panel category-solo">
+          <div class="game-category-heading"><span class="game-category-icon">👤</span><div><h2>1인 게임</h2><p>혼자서도 가볍게 즐겨요</p></div></div>
+          <div class="game-category-games">
+            <button id="mode-foodroulette" data-mode="foodroulette" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🎰</span><span class="game-mode-name">메뉴추천 룰렛</span></button>
+            <button id="mode-ssafy" data-mode="ssafy" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🧅</span><span class="game-mode-name">싸피 게임</span></button>
+            <button id="mode-balance" data-mode="balance" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">⚖️</span><span class="game-mode-name">개발자 밸런스게임</span></button>
+          </div>
+        </section>
+
+        <section class="game-category-panel category-focus">
+          <div class="game-category-heading"><span class="game-category-icon">🧩</span><div><h2>집중력<br>강화 게임!</h2><p>기억력과 순발력 대결</p></div></div>
+          <div class="game-category-games">
+            <button id="mode-memory" data-mode="memory" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🧠</span><span class="game-mode-name">짝맞추기</span></button>
+            <button id="mode-stack" data-mode="stack" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🧱</span><span class="game-mode-name">쌓기게임</span></button>
+            <button id="mode-subway" data-mode="subway" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🚇</span><span class="game-mode-name">서울지하철</span></button>
+            <button id="mode-goalkeeper" data-mode="goalkeeper" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🥅</span><span class="game-mode-name">골키퍼 게임</span></button>
+          </div>
+        </section>
+
+        <section class="game-category-panel category-special">
+          <div class="game-category-heading"><span class="game-category-icon">🏆</span><div><h2>스페셜 게임</h2><p>점수와 기록에 도전해요</p></div></div>
+          <div class="game-category-games">
+            <button id="mode-gukbap" data-mode="gukbap" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🍲</span><span class="game-mode-name">안성국밥</span></button>
+            <button id="mode-horse" data-mode="horse" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🐎</span><span class="game-mode-name">경마게임</span></button>
+            <button id="mode-csquiz" data-mode="csquiz" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">💻</span><span class="game-mode-name">CS 지식대결</span></button>
+          </div>
+        </section>
+
+        <section class="game-category-panel category-group">
+          <div class="game-category-heading"><span class="game-category-icon">🎭</span><div><h2>단체게임</h2><p>친구들과 함께 즐겨요</p></div></div>
+          <div class="game-category-games">
+            <button id="mode-drawing" data-mode="drawing" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🎨</span><span class="game-mode-name">피카소게임</span></button>
+            <button id="mode-quiz" data-mode="quiz" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🖼️</span><span class="game-mode-name">인물 맞추기</span></button>
+            <button id="mode-mafia" data-mode="mafia" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🕵️</span><span class="game-mode-name">마피아 게임</span></button>
+            <button id="mode-liar" data-mode="liar" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🤥</span><span class="game-mode-name">라이어 게임</span></button>
+            <button id="mode-tug" data-mode="tug" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🪢</span><span class="game-mode-name">줄다리기</span></button>
+            <button id="mode-songquiz" data-mode="songquiz" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🎵</span><span class="game-mode-name">노래맞추기</span></button>
+            <button id="mode-fashion" data-mode="fashion" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">👗</span><span class="game-mode-name">패션쇼 게임</span></button>
+            <button id="mode-band" data-mode="band" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🎶</span><span class="game-mode-name">합주 게임</span></button>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <section id="home-notice-board" class="home-notice-board" aria-label="공지사항 게시판">
+      <div class="home-notice-board-heading">
+        <span>관리자 공지사항</span>
+      </div>
+      <div id="home-notice-list" class="home-notice-list" aria-live="polite"></div>
+      <div class="home-notice-comments">
+        <div class="home-notice-comments-heading">📣 확성기 <span class="home-notice-comments-hint">모두가 볼 수 있어요</span></div>
+        <div id="home-notice-comments-list" class="home-notice-comments-list"></div>
+        <div class="home-notice-comment-form">
+          <input id="home-notice-comment-input" type="text" maxlength="1000" placeholder="댓글을 남겨주세요." autocomplete="off" />
+          <button id="btn-home-notice-comment" type="button">댓글</button>
+        </div>
+        <p id="home-notice-comment-message" class="home-notice-message" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </section>
+
+  <!-- PERSON DATABASE -->
+  <section id="view-person-db" class="view hidden utility-view">
+    <button id="btn-person-db-back" class="top-back-btn" type="button">&larr; 뒤로가기</button>
+    <h1>🖼️ 인물 DB 함께 만들기</h1>
+    <div class="card person-db-card">
+      <div class="home-panel-heading">
+        <span>인물 등록</span>
+        <span id="person-db-count" class="section-hint">등록 0명</span>
+      </div>
+      <p class="person-db-description">사진과 이름을 등록하면 다음 인물맞추기 게임에서 랜덤으로 출제돼요.</p>
+      <div class="person-db-form">
+        <label class="file-btn" for="person-db-image-input">사진 선택</label>
+        <input id="person-db-image-input" class="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+        <input id="person-db-name-input" type="text" maxlength="30" placeholder="인물 이름" autocomplete="off" />
+        <button id="btn-person-db-add" type="button">인물 추가</button>
+      </div>
+      <p id="person-db-file-name" class="section-hint">선택된 사진 없음</p>
+      <p id="person-db-message" class="person-db-message" aria-live="polite"></p>
+      <div class="person-db-recent-wrap">
+        <span class="section-hint">최근 등록</span>
+        <div id="person-db-recent" class="person-db-recent"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICE FEEDBACK -->
+  <section id="view-feedback" class="view hidden utility-view">
+    <button id="btn-feedback-back" class="top-back-btn" type="button">&larr; 뒤로가기</button>
+    <h1>💬 서비스 피드백</h1>
+    <div class="card feedback-card">
+      <p class="person-db-description">서비스에 대한 의견을 제목과 내용으로 남겨주세요.</p>
+      <div class="feedback-form">
+        <input id="feedback-title" type="text" maxlength="100" placeholder="피드백 제목" autocomplete="off" />
+        <textarea id="feedback-content" maxlength="3000" rows="7" placeholder="서비스에 대한 의견을 남겨주세요."></textarea>
+        <div class="feedback-actions">
+          <button id="btn-feedback-submit" type="button">피드백 보내기</button>
+          <button id="btn-feedback-cancel" class="secondary-btn" type="button">취소</button>
+        </div>
+        <p id="feedback-message" class="person-db-message" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADMIN DASHBOARD -->
+  <section id="view-admin" class="view hidden utility-view">
+    <button id="btn-admin-back" class="top-back-btn" type="button">&larr; 뒤로가기</button>
+    <h1>🛠️ 관리자 화면</h1>
+    <div class="card admin-card">
+      <div class="admin-section-heading"><h2>📢 공지 등록</h2><span>관리자 전용</span></div>
+      <input id="admin-notice-title" type="text" maxlength="100" placeholder="공지 제목" autocomplete="off" />
+      <textarea id="admin-notice-content" maxlength="5000" rows="4" placeholder="공지 내용을 입력해주세요."></textarea>
+      <button id="btn-admin-notice-submit" type="button">공지 게시하기</button>
+      <p id="admin-notice-message" class="person-db-message" aria-live="polite"></p>
+    </div>
+    <div class="card admin-card">
+      <div class="admin-section-heading"><h2>🖼️ 인물 DB 확인</h2><span id="admin-person-count">0명</span></div>
+      <div id="admin-person-list" class="admin-person-list"></div>
+    </div>
+    <div class="card admin-card">
+      <div class="admin-section-heading"><h2>💬 서비스 피드백</h2><span id="admin-feedback-count">0건</span></div>
+      <div id="admin-feedback-list" class="admin-feedback-list"></div>
+    </div>
+    <button id="btn-admin-refresh" class="secondary-btn" type="button">새로고침</button>
+  </section>
+
+  <!-- NOTICE BOARD -->
+  <section id="view-notices" class="view hidden utility-view">
+    <button id="btn-notices-back" class="top-back-btn" type="button">&larr; 뒤로가기</button>
+    <h1>📢 공지사항 게시판</h1>
+    <div class="card notice-board-card">
+      <p class="notice-board-description">모두가 볼 수 있는 게시판입니다. 새로운 소식과 게임 관련 안내를 확인해보세요.</p>
+      <div id="notice-list" class="notice-list" aria-live="polite"></div>
+      <div class="notice-post-form">
+        <h2>공지 남기기</h2>
+        <input id="notice-title" type="text" maxlength="100" placeholder="제목" autocomplete="off" />
+        <textarea id="notice-content" maxlength="5000" rows="5" placeholder="공지 내용을 입력해주세요."></textarea>
+        <button id="btn-notice-submit" type="button">게시하기</button>
+        <p id="notice-message" class="person-db-message" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- NOTICE DETAIL -->
+  <section id="view-notice-detail" class="view hidden utility-view">
+    <button id="btn-notice-detail-back" class="top-back-btn" type="button">&larr; 뒤로가기</button>
+    <div class="card notice-detail-card">
+      <div class="notice-detail-heading">
+        <h1 id="notice-detail-title">공지 제목</h1>
+        <time id="notice-detail-date"></time>
+      </div>
+      <p id="notice-detail-meta" class="notice-item-meta"></p>
+      <div id="notice-detail-content" class="notice-detail-content"></div>
+      <div class="notice-detail-comments">
+        <h2>댓글</h2>
+        <div id="notice-detail-comments-list" class="home-notice-comments-list"></div>
+        <div class="home-notice-comment-form">
+          <input id="notice-detail-comment-input" type="text" maxlength="1000" placeholder="댓글을 남겨주세요." autocomplete="off" />
+          <button id="btn-notice-detail-comment" type="button">댓글</button>
+        </div>
+        <p id="notice-detail-comment-message" class="home-notice-message" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROFILE -->
+  <section id="view-profile" class="view hidden">
+    <div class="profile-title-row">
+      <button id="btn-profile-back" class="top-back-btn" type="button">&larr; 뒤로가기</button>
+      <h1>👤 내 프로필</h1>
+    </div>
+    <div class="card profile-edit-card">
+      <div id="profile-avatar-preview" class="avatar avatar-xl"></div>
+      <label class="file-btn" for="profile-image-input">프로필 사진 등록</label>
+      <input id="profile-image-input" class="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+      <label for="profile-nickname">닉네임</label>
+      <input id="profile-nickname" type="text" maxlength="10" placeholder="닉네임" />
+      <div class="profile-stats">
+        <span id="profile-rank">순위 -위</span>
+        <span id="profile-score">누적 점수 0점</span>
+        <span id="profile-games">플레이 0회</span>
+      </div>
+      <p id="profile-error" class="error"></p>
+      <button id="btn-save-profile" type="button">프로필 저장</button>
+    </div>
+
+    <div class="card friends-card profile-friends-card">
+      <div class="home-panel-heading"><span>👥 친구 목록</span><button id="btn-profile-friend-requests" class="friend-request-shortcut" type="button">📨 받은 요청 <b id="profile-friend-request-count">0</b></button></div>
+      <div id="friend-requests-section" class="friend-requests-section hidden">
+        <p class="section-hint">📨 받은 친구 요청</p>
+        <ul id="friend-request-list" class="friend-list"></ul>
+      </div>
+      <div class="friend-add-row">
+        <input id="friend-query" type="text" placeholder="친구 전화번호 또는 닉네임" maxlength="20" />
+        <button id="btn-add-friend" type="button">추가</button>
+      </div>
+      <p id="friend-error" class="error"></p>
+      <ul id="friend-list" class="friend-list"></ul>
+    </div>
+  </section>
+
+  <!-- ENTRY -->
+  <section id="view-entry" class="view hidden">
+    <button id="btn-back-mode" class="top-back-btn" type="button">&larr; 뒤로가기</button>
+    <h1 id="entry-title">🕵️ 마피아 게임</h1>
+    <div class="entry-layout">
+      <div class="card entry-preview">
+        <div id="entry-preview-icon" class="entry-preview-icon">🕵️</div>
+        <h2 id="entry-preview-name">마피아 게임</h2>
+        <p id="entry-preview-description">역할을 나누고 토론과 투표로 마피아를 찾아내는 게임</p>
+        <div id="entry-preview-stats" class="entry-preview-stats"></div>
+      </div>
+
+      <div id="standard-entry-room-card" class="card entry-room-card">
+        <div id="chain-duration-row" class="mode-toggle hidden">
+          <button class="mode-btn chain-duration-btn" data-sec="60" type="button">1분</button>
+          <button class="mode-btn chain-duration-btn selected" data-sec="120" type="button">2분</button>
+          <button class="mode-btn chain-duration-btn" data-sec="180" type="button">3분</button>
+        </div>
+
+        <div class="room-visibility-picker" aria-label="방 공개 설정">
+          <span>방 공개 설정</span>
+          <label><input type="radio" name="room-visibility" value="private" checked /> 🔒 비밀방</label>
+          <label><input type="radio" name="room-visibility" value="public" /> 🌐 공개방</label>
+        </div>
+        <button id="btn-create">방 만들기</button>
+        <div class="divider">또는</div>
+        <input id="code-input" type="text" placeholder="방 코드 (4자리)" maxlength="4" />
+        <button id="btn-join">방 입장</button>
+        <p id="entry-error" class="error"></p>
+        <div class="public-room-list-card">
+          <div class="public-room-list-heading">
+            <strong>🌐 현재 공개방</strong>
+            <button id="btn-refresh-public-rooms" class="small-btn" type="button">새로고침</button>
+          </div>
+          <ul id="public-room-list" class="public-room-list"></ul>
+          <p id="public-room-empty" class="section-hint">현재 열려 있는 공개방이 없습니다.</p>
+        </div>
+      </div>
+
+      <div id="ssafy-entry-card" class="card ssafy-entry-card hidden">
+        <div id="ssafy-entry-content"></div>
+        <p id="ssafy-entry-status" class="section-hint">11단계 사진을 준비하면 바로 시작할 수 있어요.</p>
+        <button id="btn-ssafy-entry-start" type="button" disabled>싸피 게임 시작</button>
+      </div>
+
+      <div id="foodroulette-entry-card" class="card solo-entry-card hidden">
+        <div id="solo-choice-icon" class="entry-preview-icon">🎰</div>
+        <h2 id="solo-choice-title">메뉴추천 룰렛</h2>
+        <p id="solo-choice-description" class="section-hint">혼자 또는 친구들과 함께 즐길 수 있어요.</p>
+        <div class="solo-entry-actions">
+          <button id="btn-foodroulette-entry-start" type="button">혼자하기</button>
+          <button id="btn-solo-mode-group" class="secondary-btn" type="button">같이하기</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="view-lobby" class="view hidden">
+    <button id="btn-lobby-home" class="top-back-btn" type="button">← 메인화면으로 가기</button>
+    <h1>대기실 <span id="room-code-label"></span></h1>
+    <ul id="player-list" class="player-list"></ul>
+    <div id="tug-team-setup" class="card tug-team-setup hidden">
+      <p class="section-hint">이름을 드래그해서 원하는 팀으로 옮겨주세요. 내 이름만 이동할 수 있어요.</p>
+      <div class="tug-team-columns">
+        <div class="tug-team-zone tug-team-zone-left" data-tug-team="left">
+          <h2>🔵 왼쪽 팀 <span id="tug-left-count">0/6</span></h2>
+          <div id="tug-left-lobby" class="tug-lobby-player-list"></div>
+        </div>
+        <div class="tug-team-zone tug-team-zone-right" data-tug-team="right">
+          <h2>🔴 오른쪽 팀 <span id="tug-right-count">0/6</span></h2>
+          <div id="tug-right-lobby" class="tug-lobby-player-list"></div>
+        </div>
+      </div>
+    </div>
+    <p id="lobby-hint">6명이 모이면 방장이 게임을 시작할 수 있어요.</p>
+
+    <div id="quiz-upload-area" class="card hidden">
+      <p class="section-hint">방장만 문제(사진+정답)를 등록할 수 있어요</p>
+      <input id="quiz-file-input" type="file" accept="image/*" />
+      <div class="upload-row">
+        <input id="quiz-answer-input" type="text" placeholder="정답 (인물 이름)" maxlength="30" />
+        <button id="btn-quiz-add">추가</button>
+      </div>
+      <p class="quiz-item-count" id="quiz-item-count">등록된 문제: 0개</p>
+    </div>
+
+    <div id="ssafy-upload-area" class="card hidden">
+      <p class="section-hint">🧅 싸피 게임 사진 설정</p>
+      <p class="ssafy-lobby-help">1~11단계 사진을 등록하면 누구나 기본 사진으로 사용할 수 있어요. 같은 단계 사진을 다시 올리면 교체됩니다.</p>
+      <div id="ssafy-photo-grid" class="ssafy-photo-grid"></div>
+      <div class="ssafy-photo-form">
+        <select id="ssafy-photo-level" aria-label="싸피 게임 단계"></select>
+        <input id="ssafy-photo-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+        <button id="btn-ssafy-photo-save" type="button">사진 등록/교체</button>
+      </div>
+      <p id="ssafy-photo-message" class="section-hint"></p>
+    </div>
+    <div id="ssafy-upload-placeholder"></div>
+
+    <div class="card lobby-friends-card">
+      <p class="section-hint">👥 친구 초대</p>
+      <p class="lobby-friend-help">온라인인 친구만 방 초대 버튼이 활성화됩니다.</p>
+      <ul id="lobby-friend-list" class="friend-list"></ul>
+    </div>
+
+    <button id="btn-start" class="hidden">게임 시작</button>
+  </section>
+
+  <!-- TUG OF WAR -->
+  <section id="view-tug" class="view hidden">
+    <h1>🪢 줄다리기 팀대항전</h1>
+    <p id="tug-status" class="section-hint"></p>
+    <div class="tug-score-row">
+      <div id="tug-left-score" class="tug-score tug-score-left">왼쪽 팀 0회</div>
+      <div id="tug-right-score" class="tug-score tug-score-right">오른쪽 팀 0회</div>
+    </div>
+    <div class="tug-track" aria-label="줄다리기 진행 상황">
+      <div class="tug-win-zone tug-win-zone-left">왼쪽 승리선</div>
+      <div class="tug-win-zone tug-win-zone-right">오른쪽 승리선</div>
+      <div class="tug-rope-line"></div>
+      <div id="tug-rope-handle" class="tug-rope-handle">🪢</div>
+    </div>
+    <div class="tug-team-board">
+      <div class="tug-game-team tug-game-team-left">
+        <h2>🔵 왼쪽 팀</h2>
+        <div id="tug-left-characters" class="tug-characters"></div>
+        <ul id="tug-left-players" class="tug-game-player-list"></ul>
+      </div>
+      <div class="tug-game-team tug-game-team-right">
+        <h2>🔴 오른쪽 팀</h2>
+        <div id="tug-right-characters" class="tug-characters"></div>
+        <ul id="tug-right-players" class="tug-game-player-list"></ul>
+      </div>
+    </div>
+    <button id="btn-tug-pull" class="tug-pull-btn" type="button">🪢 클릭해서 줄 당기기</button>
+    <p id="tug-click-help" class="section-hint">내 팀 버튼을 많이 클릭할수록 줄이 우리 팀 쪽으로 이동합니다.</p>
+  </section>
+
+  <!-- SONG QUIZ -->
+  <section id="view-songquiz" class="view hidden">
+    <h1>🎵 노래맞추기 <span id="song-round-num"></span></h1>
+    <p class="timer" id="song-timer"></p>
+    <div class="song-player-card">
+      <div class="song-video-wrap">
+        <iframe id="song-youtube-player" title="음원 재생" aria-hidden="true" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>
+      <button id="song-replay" class="secondary-btn" type="button">🔁 다시 재생</button>
+      <p class="song-player-note">뮤직비디오 하이라이트 30초만 재생되며, 재생 조작은 제한되고 다시 재생만 가능합니다.</p>
+    </div>
+    <div class="song-answer-card">
+      <div class="song-answer-row">
+        <label for="song-artist-input">가수</label>
+        <input id="song-artist-input" type="text" maxlength="40" placeholder="가수 이름" autocomplete="off" />
+      </div>
+      <div class="song-answer-row">
+        <label for="song-title-input">제목</label>
+        <input id="song-title-input" type="text" maxlength="60" placeholder="노래 제목" autocomplete="off" />
+      </div>
+      <button id="song-submit" type="button">정답 제출</button>
+      <button id="song-skip" class="secondary-btn" type="button">라운드 스킵 (0명)</button>
+      <p id="song-round-msg" class="song-round-msg"></p>
+    </div>
+    <ul class="score-board" id="song-score-board"></ul>
+  </section>
+
+  <!-- FOOD RECOMMENDATION ROULETTE -->
+  <section id="view-foodroulette" class="view hidden">
+    <h1>🎰 메뉴추천 룰렛</h1>
+    <p id="foodroulette-status" class="section-hint">친구들과 먹고 싶은 메뉴를 정해보세요.</p>
+    <div class="foodroulette-card">
+      <div id="foodroulette-wheel" class="foodroulette-wheel" aria-label="메뉴추천 룰렛">🍽️</div>
+      <p class="foodroulette-count">젊은 입맛 메뉴 <strong id="foodroulette-menu-count">100</strong>개</p>
+      <button id="foodroulette-spin" class="foodroulette-spin-btn" type="button">룰렛 돌리기</button>
+      <div id="foodroulette-result" class="foodroulette-result" aria-live="polite">오늘의 메뉴는?</div>
+      <p class="foodroulette-help">누구나 버튼을 눌러 다시 추천받을 수 있어요. 점수 없이 가볍게 즐기는 게임입니다.</p>
+    </div>
+  </section>
+
+  <!-- ROLE / WORD REVEAL -->
+  <section id="view-role" class="view hidden">
+    <h1 id="role-view-title">당신의 역할</h1>
+    <div id="role-card" class="role-card"></div>
+    <button id="btn-role-ack">확인했어요</button>
+    <p id="role-ack-status"></p>
+  </section>
+
+  <!-- NIGHT -->
+  <section id="view-night" class="view hidden">
+    <h1>🌙 밤이 되었습니다 <span id="night-day-num"></span></h1>
+    <p class="timer" id="night-timer"></p>
+    <div id="night-action-area"></div>
+    <p id="night-wait-msg" class="hidden">각자의 역할이 은밀히 행동 중입니다...</p>
+  </section>
+
+  <!-- DAY DISCUSSION -->
+  <section id="view-day" class="view hidden">
+    <h1 id="day-view-title">☀️ 낮 토론 <span id="day-num"></span></h1>
+    <p class="timer" id="day-timer"></p>
+    <p id="night-result-msg"></p>
+    <div id="chat-box" class="chat-box"></div>
+    <div class="chat-input-row">
+      <input id="chat-input" type="text" placeholder="메시지 입력..." maxlength="500" />
+      <button id="btn-chat-send">전송</button>
+    </div>
+    <button id="btn-skip-vote" class="hidden">투표로 넘어가기 (방장)</button>
+  </section>
+
+  <!-- LIAR TURNS -->
+  <section id="view-liar-turn" class="view hidden">
+    <h1>🎙️ 발언 시간</h1>
+    <p id="liar-turn-progress"></p>
+    <div id="liar-turn-speaker" class="role-card"></div>
+    <p class="timer" id="liar-turn-timer"></p>
+    <div id="liar-turn-chat-box" class="chat-box"></div>
+    <div class="chat-input-row">
+      <input id="liar-turn-chat-input" type="text" placeholder="채팅으로 발언하세요..." maxlength="500" />
+      <button id="btn-liar-turn-chat-send">전송</button>
+    </div>
+    <button id="btn-finish-turn" class="hidden">발언 완료</button>
+    <ul id="liar-turn-cards" class="player-list"></ul>
+  </section>
+
+  <!-- DAY VOTE -->
+  <section id="view-vote" class="view hidden">
+    <h1>🗳️ 투표 시간</h1>
+    <p class="timer" id="vote-timer"></p>
+    <p id="vote-progress"></p>
+    <ul id="vote-list" class="vote-list"></ul>
+  </section>
+
+  <!-- LIAR GUESS -->
+  <section id="view-liar-guess" class="view hidden">
+    <h1>🤥 라이어로 지목되었습니다!</h1>
+    <p id="liar-guess-sub"></p>
+    <div id="liar-guess-form">
+      <input id="liar-guess-input" type="text" placeholder="제시어를 맞혀보세요" maxlength="30" />
+      <button id="btn-liar-guess">정답 제출</button>
+    </div>
+    <p class="timer" id="liar-guess-timer"></p>
+  </section>
+
+  <!-- WORDCHAIN -->
+  <section id="view-wordchain" class="view hidden">
+    <h1>🔗 끝말잇기</h1>
+    <p class="timer" id="chain-timer"></p>
+    <div class="chain-word-display" id="chain-word-display"></div>
+    <p class="chain-log" id="chain-log"></p>
+    <div class="answer-row">
+      <input id="chain-input" type="text" placeholder="다음 단어를 입력하세요" maxlength="20" />
+      <button id="btn-chain-submit">제출</button>
+    </div>
+    <p id="chain-error" class="error"></p>
+    <ul class="score-board" id="chain-score-board"></ul>
+  </section>
+
+  <!-- DRAWING GAME -->
+  <section id="view-drawing" class="view hidden">
+    <h1>🎨 피카소게임 <span id="draw-round-num"></span></h1>
+    <div id="draw-topic" class="draw-topic"></div>
+    <p class="timer" id="draw-timer"></p>
+    <div id="draw-canvas-area">
+      <canvas id="draw-canvas" class="draw-canvas" width="720" height="480"></canvas>
+      <div class="draw-toolbar">
+        <label>색 <input id="draw-color" type="color" value="#111827" /></label>
+        <label>굵기 <input id="draw-size" type="range" min="2" max="32" value="8" /></label>
+        <button id="btn-draw-eraser" class="secondary-btn" type="button" aria-pressed="false">부분 지우개</button>
+        <button id="btn-draw-clear" class="secondary-btn" type="button">전체 지우기</button>
+      </div>
+      <button id="btn-draw-submit" type="button">그림 제출</button>
+      <p id="draw-status" class="section-hint"></p>
+    </div>
+    <div id="draw-voting-area" class="hidden">
+      <p id="draw-vote-help" class="section-hint">내 그림을 제외하고 가장 잘 그린 그림을 골라주세요.</p>
+      <p id="draw-vote-progress" class="section-hint"></p>
+      <div id="draw-gallery" class="draw-gallery"></div>
+    </div>
+    <div id="draw-round-result" class="draw-round-result hidden"></div>
+  </section>
+
+  <!-- MEMORY MATCH GAME -->
+  <section id="view-memory" class="view hidden">
+    <h1>🧠 짝맞추기게임</h1>
+    <p id="memory-turn-label" class="memory-turn-label"></p>
+    <p class="timer" id="memory-timer"></p>
+    <p id="memory-status" class="section-hint"></p>
+    <div id="memory-board" class="memory-board"></div>
+  </section>
+
+  <!-- COFFEE-BUY GAME -->
+  <section id="view-coffee" class="view hidden">
+    <h1>☕ 커피쏘기게임 <span id="coffee-round-num"></span></h1>
+    <p class="timer" id="coffee-timer"></p>
+    <p id="coffee-status" class="section-hint"></p>
+    <div id="coffee-drinks" class="coffee-drinks"></div>
+    <div id="coffee-round-result" class="coffee-round-result hidden"></div>
+    <p id="coffee-active-label" class="section-hint"></p>
+    <div id="coffee-rps-area" class="coffee-rps-area hidden">
+      <p id="coffee-rps-help" class="section-hint">최종 두 명이 남았습니다. 가위, 바위, 보 중 하나를 선택하세요.</p>
+      <div id="coffee-rps-finalists" class="coffee-rps-finalists"></div>
+      <div id="coffee-rps-buttons" class="coffee-rps-buttons">
+        <button type="button" data-rps-choice="scissors">✌️ 가위</button>
+        <button type="button" data-rps-choice="rock">✊ 바위</button>
+        <button type="button" data-rps-choice="paper">✋ 보</button>
+      </div>
+      <p id="coffee-rps-status" class="section-hint"></p>
+    </div>
+  </section>
+
+  <!-- SEOUL SUBWAY LINE QUIZ -->
+  <section id="view-subway" class="view hidden">
+    <h1>🚇 서울 지하철 호선맞추기 <span id="subway-round-num"></span></h1>
+    <p class="timer" id="subway-timer"></p>
+    <div id="subway-station" class="subway-station"></div>
+    <p id="subway-instruction" class="section-hint subway-guide">호선을 선택한 뒤 정답 제출을 눌러주세요.</p>
+    <div id="subway-lines" class="subway-lines"></div>
+    <button id="btn-subway-submit" type="button" disabled>정답 제출</button>
+    <p id="subway-round-msg" class="section-hint subway-guide"></p>
+    <ul class="score-board" id="subway-score-board"></ul>
+  </section>
+
+  <!-- DEVELOPER BALANCE GAME -->
+  <section id="view-balance" class="view hidden">
+    <h1>⚖️ 개발자 밸런스게임 <span id="balance-round-num"></span></h1>
+    <p class="timer" id="balance-timer"></p>
+    <div class="balance-question-card">
+      <p class="balance-question-label">둘 중 하나만 골라주세요!</p>
+      <div class="balance-choice-grid">
+        <button id="balance-choice-left" class="balance-choice balance-choice-left" type="button"></button>
+        <span class="balance-vs">VS</span>
+        <button id="balance-choice-right" class="balance-choice balance-choice-right" type="button"></button>
+      </div>
+      <p id="balance-vote-status" class="balance-vote-status"></p>
+      <div id="balance-result" class="balance-result hidden">
+        <div><span id="balance-left-count">0표</span><span id="balance-left-percent">0%</span></div>
+        <div><span id="balance-right-count">0표</span><span id="balance-right-percent">0%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FASHION SHOW GAME -->
+  <section id="view-fashion" class="view hidden">
+    <h1>👗 패션쇼 게임 <span id="fashion-round-num"></span></h1>
+    <p class="timer" id="fashion-timer"></p>
+    <div id="fashion-topic" class="fashion-topic"></div>
+
+    <div id="fashion-dressing-area" class="fashion-dressing-area">
+      <div class="card fashion-stage-card">
+        <p class="fashion-help">아이템을 캐릭터 슬롯으로 드래그하거나 눌러서 꾸며보세요.</p>
+        <div id="fashion-doll" class="fashion-doll"></div>
+        <button id="fashion-submit" type="button">꾸미기 제출</button>
+        <p id="fashion-status" class="fashion-status"></p>
+      </div>
+      <div class="card fashion-palette-card">
+        <p class="fashion-palette-title">아이템 목록</p>
+        <div id="fashion-palette" class="fashion-palette"></div>
+      </div>
+    </div>
+
+    <div id="fashion-voting-area" class="card fashion-voting-area hidden">
+      <p class="fashion-vote-help">누가 꾸몄는지 모르는 익명 투표예요. 나를 제외한 스타일 하나를 골라주세요.</p>
+      <div id="fashion-gallery" class="fashion-gallery"></div>
+      <p id="fashion-vote-status" class="fashion-status"></p>
+    </div>
+    <div id="fashion-round-result" class="fashion-round-result hidden"></div>
+  </section>
+
+  <!-- PHOTO QUIZ ROUND -->
+  <section id="view-quiz-round" class="view hidden">
+    <h1>🖼️ 인물 맞추기 <span id="quiz-round-num"></span></h1>
+    <p class="timer" id="quiz-timer"></p>
+    <img id="quiz-image" class="quiz-image" src="" alt="퀴즈 이미지" />
+    <div class="answer-row">
+      <input id="quiz-answer-guess" type="text" placeholder="이름을 입력하세요" maxlength="30" />
+      <button id="btn-quiz-guess">제출</button>
+    </div>
+    <p id="quiz-round-msg"></p>
+    <ul class="score-board" id="quiz-score-board"></ul>
+  </section>
+
+  <!-- STACK GAME -->
+  <section id="view-stack" class="view hidden">
+    <h1>🧱 쌓기 게임</h1>
+    <p id="stack-turn-msg" class="section-hint"></p>
+    <p class="timer" id="stack-timer"></p>
+    <div id="stack-drag-lane" class="stack-drag-lane">
+      <div id="stack-drag-block" class="stack-drag-block"></div>
+    </div>
+    <div id="stack-tower-wrap" class="stack-tower-wrap">
+      <div id="stack-tower" class="stack-tower"></div>
+    </div>
+    <p id="stack-height-label" class="section-hint"></p>
+  </section>
+
+  <!-- STACK GAME - persistent control guide (only visible on my turn) -->
+  <div id="stack-key-guide" class="stack-key-guide hidden">
+    블록이 좌우로 움직여요 &nbsp;·&nbsp;
+    <span class="key-chip">Space</span> 타이밍 맞춰 낙하
+  </div>
+
+  <!-- CS QUIZ ROUND -->
+  <section id="view-cs-round" class="view hidden">
+    <h1>💻 CS 지식대결 <span id="cs-round-num"></span></h1>
+    <p class="timer" id="cs-timer"></p>
+    <div class="role-card" id="cs-question"></div>
+    <div id="cs-choices"></div>
+    <p id="cs-round-msg"></p>
+    <ul class="score-board" id="cs-score-board"></ul>
+  </section>
+
+  <!-- HORSE RACE - BETTING -->
+  <section id="view-horse-bet" class="view hidden">
+    <h1>🐎 경마게임(김성진 게임) <span id="horse-round-num"></span></h1>
+    <p class="timer" id="horse-timer"></p>
+    <p id="horse-my-tokens" class="section-hint"></p>
+    <div id="horse-lanes" class="horse-lanes"></div>
+    <div class="answer-row">
+      <input id="horse-bet-amount" type="number" min="10" step="1" placeholder="베팅액 (최소 10)" />
+      <button id="btn-horse-bet">베팅하기</button>
+    </div>
+    <p id="horse-bet-status" class="section-hint"></p>
+
+    <button id="btn-horse-stats" class="link-btn" type="button">📊 지난 승률 종이 보기 (50토큰)</button>
+    <div id="horse-stats-paper" class="horse-stats-paper hidden">
+      <div class="horse-stats-title">🗞️ 지금까지의 우승 기록</div>
+      <ul id="horse-stats-list" class="score-board"></ul>
+      <p class="horse-stats-note">※ 이번 판 실제 기록입니다. 표본이 적어 미래 결과를 100% 보장하진 않아요.</p>
+    </div>
+  </section>
+
+  <!-- HORSE RACE - RACING -->
+  <section id="view-horse-race" class="view hidden">
+    <h1>🏁 경주 중!</h1>
+    <div id="horse-track" class="horse-track"></div>
+    <p id="horse-result-msg" class="section-hint"></p>
+    <ul id="horse-result-list" class="score-board"></ul>
+  </section>
+
+  <!-- HORSE RACE - persistent live leaderboard -->
+  <div id="horse-leaderboard" class="horse-leaderboard hidden">
+    <div class="horse-leaderboard-title">🏆 실시간 순위</div>
+    <ul id="horse-leaderboard-list"></ul>
+  </div>
+
+  <!-- GUKBAP GAME -->
+  <section id="view-gukbap" class="view hidden">
+    <h1>🍲 안성국밥 게임</h1>
+    <p id="gukbap-stage-msg" class="section-hint"></p>
+    <div id="gukbap-area" class="gukbap-area">
+      <div id="gukbap-bowl" class="gukbap-bowl">🍲</div>
+      <div id="gukbap-rice" class="gukbap-rice">🍚</div>
+    </div>
+    <div class="gukbap-progress-row hidden" id="gukbap-progress-row">
+      <div class="gukbap-progress-bar"><div id="gukbap-progress-fill" class="gukbap-progress-fill"></div></div>
+      <span id="gukbap-progress-label"></span>
+    </div>
+    <ul id="gukbap-others" class="score-board"></ul>
+  </section>
+
+  <!-- SSAFY ONION GAME -->
+  <section id="view-ssafy" class="view hidden">
+    <h1>🧅 싸피 게임</h1>
+    <div class="ssafy-hud">
+      <span id="ssafy-score-label">점수 0</span>
+      <span id="ssafy-level-label">최고 단계 1</span>
+      <button id="btn-ssafy-drop" type="button">떨어뜨리기</button>
+    </div>
+    <p id="ssafy-status" class="section-hint">화면을 클릭하거나 스페이스바를 눌러 떨어뜨리세요.</p>
+    <div class="ssafy-game-wrap">
+      <canvas id="ssafy-canvas" width="420" height="620" aria-label="싸피 게임 보드"></canvas>
+    </div>
+  </section>
+
+  <!-- GOALKEEPER GAME -->
+  <section id="view-goalkeeper" class="view hidden">
+    <h1>🥅 골키퍼 게임</h1>
+    <p id="goalkeeper-turn-label" class="goalkeeper-turn-label"></p>
+    <p id="goalkeeper-timer" class="timer"></p>
+    <div class="goalkeeper-score-row">
+      <div><span id="goalkeeper-score-me-name">나</span><strong id="goalkeeper-score-me">0골</strong></div>
+      <div><span id="goalkeeper-score-other-name">상대</span><strong id="goalkeeper-score-other">0골</strong></div>
+    </div>
+    <p id="goalkeeper-shot-label" class="goalkeeper-shot-label"></p>
+    <p id="goalkeeper-status" class="section-hint">왼쪽 또는 오른쪽을 선택하세요.</p>
+    <div class="goalkeeper-stadium" aria-label="축구 경기장">
+      <div class="goalkeeper-crowd">🏟️　⚽　🏟️</div>
+      <div class="goalkeeper-pitch">
+        <div class="goalkeeper-goal"><span class="goalkeeper-net"></span><span class="goalkeeper-keeper">🧤</span></div>
+        <div id="goalkeeper-ball" class="goalkeeper-ball" aria-label="축구공">⚽</div>
+        <div class="goalkeeper-penalty-spot"></div>
+      </div>
+    </div>
+    <div id="goalkeeper-choices" class="goalkeeper-choices">
+      <button class="goalkeeper-choice" data-goalkeeper-side="left" type="button">⬅️ 왼쪽</button>
+      <button class="goalkeeper-choice" data-goalkeeper-side="right" type="button">오른쪽 ➡️</button>
+    </div>
+    <div id="goalkeeper-shot-result" class="goalkeeper-shot-result hidden"></div>
+  </section>
+
+  <!-- BAND / ENSEMBLE GAME -->
+  <section id="view-band" class="view hidden">
+    <h1>🎶 합주 게임</h1>
+    <p id="band-status" class="section-hint">악기를 고르고 친구들과 함께 연주해보세요.</p>
+    <div class="band-toolbar">
+      <label class="band-instrument-picker" for="band-instrument-select">내 파트
+        <select id="band-instrument-select">
+          <option value="piano">🎹 피아노</option>
+          <option value="electric1">🎸 일렉 1</option>
+          <option value="electric2">🎸 일렉 2</option>
+          <option value="bass">🎸 베이스</option>
+          <option value="drums">🥁 드럼</option>
+          <option value="vocal">🎤 보컬</option>
+        </select>
+      </label>
+      <button id="band-mic-toggle" class="secondary-btn" type="button">🎤 마이크 켜기</button>
+      <button id="band-record-start" type="button">⏺ 녹음 시작</button>
+      <button id="band-record-stop" class="secondary-btn" type="button" disabled>⏹ 녹음 종료</button>
+      <a id="band-record-download" class="band-download hidden" download="party-band.webm">💾 녹음 파일 저장</a>
+    </div>
+    <div id="band-members" class="band-members"></div>
+    <div id="band-piano-panel" class="band-instrument-panel">
+      <h2>🎹 피아노 건반</h2>
+      <p class="band-control-hint">마우스·터치 또는 A~K 키로 연주하세요.</p>
+      <div id="band-piano-keys" class="band-piano-keys"></div>
+    </div>
+    <div id="band-chord-panel" class="band-instrument-panel hidden">
+      <h2>🎸 코드 연주</h2>
+      <p class="band-control-hint">코드를 눌러 일렉 기타나 베이스 파트를 채워보세요.</p>
+      <div id="band-chord-buttons" class="band-chord-buttons"></div>
+    </div>
+    <div id="band-drums-panel" class="band-instrument-panel hidden">
+      <h2>🥁 드럼 패드</h2>
+      <p class="band-control-hint">패드를 누르거나 1~5 키로 리듬을 넣어보세요.</p>
+      <div id="band-drum-pads" class="band-drum-pads">
+        <button type="button" data-band-drum="kick">1<br><strong>킥</strong></button>
+        <button type="button" data-band-drum="snare">2<br><strong>스네어</strong></button>
+        <button type="button" data-band-drum="hihat">3<br><strong>하이햇</strong></button>
+        <button type="button" data-band-drum="tom">4<br><strong>탐</strong></button>
+        <button type="button" data-band-drum="crash">5<br><strong>크래시</strong></button>
+      </div>
+    </div>
+    <div id="band-vocal-panel" class="band-instrument-panel hidden">
+      <h2>🎤 보컬</h2>
+      <p class="band-vocal-note">마이크를 켜면 모든 참가자가 내 목소리를 들을 수 있어요. 참가자 모두 보컬 마이크를 사용할 수 있습니다.</p>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="view-result" class="view hidden">
+    <h1 id="result-title"></h1>
+    <p id="result-word-info"></p>
+    <ul id="result-roles" class="player-list"></ul>
+    <ul id="result-score-board" class="score-board hidden"></ul>
+    <div class="result-actions">
+      <button id="btn-restart">다시 하기</button>
+      <button id="btn-main-home" class="secondary-btn" type="button">메인화면으로 가기</button>
+    </div>
+  </section>
+
+</div>
+<aside id="game-help-panel" class="game-help-panel hidden" aria-live="polite">
+  <div class="game-help-kicker">🎮 PLAY GUIDE</div>
+  <h2 id="game-help-title">게임 안내</h2>
+  <p id="game-help-summary" class="game-help-summary"></p>
+  <div class="game-help-section">
+    <h3>🕹️ 조작 방법</h3>
+    <p id="game-help-control"></p>
+  </div>
+  <div class="game-help-section">
+    <h3>🏆 점수 획득</h3>
+    <p id="game-help-score"></p>
+  </div>
+  <p id="game-help-tip" class="game-help-tip"></p>
+</aside>
+<aside id="live-score-panel" class="live-score-panel hidden" aria-live="polite">
+  <div class="live-score-heading">
+    <span>🏆 현재 순위</span>
+    <span id="live-score-mode" class="live-score-mode"></span>
+  </div>
+  <ol id="live-score-list" class="live-score-list"></ol>
+</aside>
+<div id="friend-invite-banner" class="friend-invite hidden"></div>
+<div id="app-modal" class="app-modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="app-modal-card">
+    <h2 id="modal-title">알림</h2>
+    <p id="modal-message"></p>
+    <div class="modal-actions">
+      <button id="btn-modal-confirm" class="hidden" type="button">네</button>
+      <button id="btn-close-modal" type="button">확인</button>
+    </div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
+</body>
+</html>

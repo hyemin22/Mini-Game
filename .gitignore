@@ -1,0 +1,24 @@
+# --- 의존성 및 패키지 폴더 ---
+node_modules/
+venv/
+env/
+__pycache__/
+
+# --- 환경 변수 및 설정 파일 (비밀번호/API 키 보호) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- 빌드 결과물 및 출력 폴더 ---
+dist/
+build/
+out/
+*.log
+
+# --- 운영체제 및 IDE 설정 파일 ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
