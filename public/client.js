@@ -1,4 +1,5 @@
-const socket = io();
+const backendUrl = window.APP_CONFIG?.backendUrl?.trim() || window.location.origin;
+const socket = io(backendUrl);
 
 const ROLE_INFO = {
   mafia: { label: '🔪 마피아', desc: '밤마다 한 명을 지목해 제거하세요. 정체를 들키지 마세요.' },
@@ -2051,8 +2052,10 @@ socket.on('phase_change', data => {
     ssafyAutoStart = false;
     showView('view-foodroulette');
     el('foodroulette-menu-count').textContent = data.menuCount || 100;
-    el('foodroulette-result').textContent = '오늘의 메뉴는?';
-    el('foodroulette-status').textContent = '누구나 룰렛을 돌릴 수 있어요. 마음에 드는 메뉴를 골라보세요!';
+    el('foodroulette-result').textContent = data.currentResult || '오늘의 메뉴는?';
+    el('foodroulette-status').textContent = data.currentResult
+      ? `오늘은 ${data.currentResult} 어때요?`
+      : '누구나 룰렛을 돌릴 수 있어요. 마음에 드는 메뉴를 골라보세요!';
     el('foodroulette-spin').disabled = false;
     el('foodroulette-wheel').classList.remove('is-spinning');
   } else if (data.phase === 'band_playing') {
