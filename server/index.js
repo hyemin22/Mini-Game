@@ -13,17 +13,45 @@ const personDb = require('./person-db');
 const feedbackDb = require('./feedback');
 const noticeDb = require('./notices');
 const ssafyDb = require('./ssafy-db');
-const DEVELOPER_PHONE = accounts.normalizePhone(process.env.DEVELOPER_PHONE || '');
 
 // Node 20.12+ can load a local .env file without an extra dependency.
 const envFile = path.join(__dirname, '..', '.env');
 if (typeof process.loadEnvFile === 'function' && fs.existsSync(envFile)) {
   process.loadEnvFile(envFile);
 }
+const DEVELOPER_PHONE = accounts.normalizePhone(process.env.DEVELOPER_PHONE || '');
+const configuredFrontendOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(origin => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+const localFrontendOrigins = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+]);
+
+function isAllowedFrontendOrigin(origin) {
+  if (!origin) return true;
+  return configuredFrontendOrigins.includes(origin) || localFrontendOrigins.has(origin);
+}
+
+function socketCorsOrigin(origin, callback) {
+  if (isAllowedFrontendOrigin(origin)) return callback(null, true);
+  return callback(new Error('Origin is not allowed by CORS'));
+}
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { maxHttpBufferSize: 16 * 1024 * 1024 });
+const io = new Server(server, {
+  maxHttpBufferSize: 16 * 1024 * 1024,
+  cors: {
+    origin: socketCorsOrigin,
+    methods: ['GET', 'POST'],
+  },
+});
 const rooms = new RoomManager();
 const onlineSockets = new Map(); // phone -> Set<socket>
 const RECONNECT_GRACE_MS = 15000;
@@ -426,6 +454,19 @@ function voteDuration(dayNumber) {
   return Math.max(VOTE_MIN_MS, DAY_VOTE_MS - (dayNumber - 1) * VOTE_STEP_MS);
 }
 
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (!origin) return next();
+  if (!isAllowedFrontendOrigin(origin)) {
+    return res.status(403).json({ error: 'Origin is not allowed by CORS' });
+  }
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Vary', 'Origin');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  return next();
+});
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const timers = new Map(); // roomCode -> Timeout
@@ -482,6 +523,31 @@ function emitCurrentSongRound(socket, room) {
   });
 }
 
+function restorePlayerToSocket(socket, room, player) {
+  player.socketId = socket.id;
+  player.disconnected = false;
+  socket.data.roomCode = room.code;
+  socket.join(room.code);
+  socket.emit('room_resumed', {
+    code: room.code,
+    playerId: player.id,
+    mode: room.mode,
+    phase: room.phase,
+  });
+  if (room.mode === 'foodroulette' && room.phase === 'foodroulette_playing') {
+    socket.emit('phase_change', {
+      phase: 'foodroulette_playing',
+      menuCount: FOOD_ROULETTE_MENUS.length,
+      currentResult: room.foodRouletteResult,
+    });
+  }
+  if (room.mode === 'band' && room.phase === 'band_playing') {
+    socket.emit('phase_change', { phase: 'band_playing', lateJoin: true });
+  }
+  emitCurrentSongRound(socket, room);
+  broadcastState(room);
+}
+
 function resumeDisconnectedPlayer(socket) {
   const phone = socket.account?.phone;
   const pending = phone ? reconnectingPlayers.get(phone) : null;
@@ -493,18 +559,7 @@ function resumeDisconnectedPlayer(socket) {
   const player = room?.players.find(item => item.id === pending.playerId && item.accountPhone === phone);
   if (!room || !player) return null;
 
-  player.socketId = socket.id;
-  player.disconnected = false;
-  socket.data.roomCode = room.code;
-  socket.join(room.code);
-  socket.emit('room_resumed', {
-    code: room.code,
-    playerId: player.id,
-    mode: room.mode,
-    phase: room.phase,
-  });
-  broadcastState(room);
-  emitCurrentSongRound(socket, room);
+  restorePlayerToSocket(socket, room, player);
   return room.code;
 }
 
@@ -550,6 +605,18 @@ function deferSocketRemoval(socket) {
       }
     }
   }, RECONNECT_GRACE_MS);
+
+  // A page reload can authenticate the new socket before the old socket's
+  // disconnect event arrives. Hand the player over immediately in that case
+  // so the reconnect does not get stranded on the home screen.
+  const replacementSocket = [...(onlineSockets.get(phone) || [])]
+    .find(candidate => candidate.id !== socket.id);
+  if (replacementSocket) {
+    clearTimeout(pending.timer);
+    restorePlayerToSocket(replacementSocket, room, player);
+    return;
+  }
+
   reconnectingPlayers.set(phone, pending);
   broadcastState(room);
 }
