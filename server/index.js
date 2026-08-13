@@ -20,8 +20,10 @@ if (typeof process.loadEnvFile === 'function' && fs.existsSync(envFile)) {
   process.loadEnvFile(envFile);
 }
 const DEVELOPER_PHONE = accounts.normalizePhone(process.env.DEVELOPER_PHONE || '');
-const configuredFrontendOrigins = (process.env.FRONTEND_URL || '')
-  .split(',')
+const configuredFrontendOrigins = [
+  'https://mini-game-front.vercel.app',
+  ...(process.env.FRONTEND_URL || '').split(','),
+]
   .map(origin => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 const localFrontendOrigins = new Set([
