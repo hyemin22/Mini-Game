@@ -10,7 +10,7 @@
 
 ```env
 KOREAN_DICT_API_KEY=발급받은_인증키
-FRONTEND_URL=https://your-frontend.vercel.app
+FRONTEND_URL=https://mini-game-front.vercel.app
 DEVELOPER_PHONE=선택사항
 ```
 
