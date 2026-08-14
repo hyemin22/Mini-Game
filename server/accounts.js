@@ -18,7 +18,8 @@ function load() {
       let changed = false;
       accounts = new Map(raw.map(a => {
         const totalScore = Math.max(0, Number(a.totalScore) || 0);
-        if (totalScore !== Number(a.totalScore) || !Array.isArray(a.friends) || !a.friendRequests) changed = true;
+        const gameScores = a.gameScores && typeof a.gameScores === 'object' ? a.gameScores : {};
+        if (totalScore !== Number(a.totalScore) || !Array.isArray(a.friends) || !a.friendRequests || !a.gameScores) changed = true;
         return [a.phone, {
           friends: [],
           friendRequests: { incoming: [], outgoing: [] },
@@ -28,6 +29,7 @@ function load() {
             incoming: Array.isArray(a.friendRequests?.incoming) ? a.friendRequests.incoming : [],
             outgoing: Array.isArray(a.friendRequests?.outgoing) ? a.friendRequests.outgoing : [],
           },
+          gameScores: Object.fromEntries(Object.entries(gameScores).map(([key, value]) => [key, Math.max(0, Number(value) || 0)])),
           totalScore,
         }];
       }));
@@ -57,7 +59,7 @@ function getOrCreateAccount(phone, nickname) {
   const key = normalizePhone(phone);
   let acc = accounts.get(key);
   if (!acc) {
-    acc = { phone: key, nickname, profileImage: null, totalScore: 0, gamesPlayed: 0, friends: [], friendRequests: { incoming: [], outgoing: [] }, updatedAt: Date.now() };
+    acc = { phone: key, nickname, profileImage: null, totalScore: 0, gamesPlayed: 0, gameScores: {}, friends: [], friendRequests: { incoming: [], outgoing: [] }, updatedAt: Date.now() };
     accounts.set(key, acc);
     saveDebounced();
   } else if (nickname && acc.nickname !== nickname) {
@@ -65,6 +67,7 @@ function getOrCreateAccount(phone, nickname) {
     saveDebounced();
   }
   acc.friendRequests ||= { incoming: [], outgoing: [] };
+  acc.gameScores ||= {};
   return acc;
 }
 
@@ -77,12 +80,28 @@ function findByNickname(nickname) {
   return [...accounts.values()].find(a => a.nickname.toLowerCase() === target) || null;
 }
 
-function addScore(phone, delta) {
+function addScore(phone, delta, gameKey = null) {
   const key = normalizePhone(phone);
   const acc = accounts.get(key);
   if (!acc || !delta) return;
-  acc.totalScore = Math.max(0, acc.totalScore + (Number(delta) || 0));
+  const amount = Number(delta) || 0;
+  acc.totalScore = Math.max(0, acc.totalScore + amount);
+  if (gameKey) {
+    acc.gameScores ||= {};
+    acc.gameScores[gameKey] = Math.max(0, (Number(acc.gameScores[gameKey]) || 0) + amount);
+  }
   acc.gamesPlayed += 1;
+  acc.updatedAt = Date.now();
+  saveDebounced();
+}
+
+function addGameScore(phone, gameKey, delta) {
+  const key = normalizePhone(phone);
+  const acc = accounts.get(key);
+  const amount = Number(delta) || 0;
+  if (!acc || !gameKey || amount <= 0) return;
+  acc.gameScores ||= {};
+  acc.gameScores[gameKey] = Math.max(0, (Number(acc.gameScores[gameKey]) || 0) + amount);
   acc.updatedAt = Date.now();
   saveDebounced();
 }
@@ -231,6 +250,18 @@ function getLeaderboardWithPresence(isOnline, limit = 20) {
     .map(a => ({ ...publicProfile(a), online: !!isOnline?.(a.phone) }));
 }
 
+function getGameLeaderboard(gameKey, isOnline, limit = 20) {
+  return [...accounts.values()]
+    .sort((a, b) => (Number(b.gameScores?.[gameKey]) || 0) - (Number(a.gameScores?.[gameKey]) || 0))
+    .slice(0, limit)
+    .map(a => ({
+      nickname: a.nickname,
+      profileImage: a.profileImage || null,
+      score: Math.max(0, Number(a.gameScores?.[gameKey]) || 0),
+      online: !!isOnline?.(a.phone),
+    }));
+}
+
 load();
 
 module.exports = {
@@ -238,6 +269,7 @@ module.exports = {
   findByPhone,
   findByNickname,
   addScore,
+  addGameScore,
   addFriend,
   sendFriendRequest,
   acceptFriendRequest,
@@ -249,5 +281,6 @@ module.exports = {
   getProfile,
   getLeaderboard,
   getLeaderboardWithPresence,
+  getGameLeaderboard,
   normalizePhone,
 };
