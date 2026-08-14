@@ -752,12 +752,24 @@ function errMsg(code) {
 // ---------- login ----------
 const LOGIN_STORAGE_KEY = 'party_game_login';
 const THEME_STORAGE_KEY = 'party_game_theme';
+const THEME_LABELS = {
+  dark: '☀️ 화이트모드',
+  light: '🌙 다크모드',
+  ide: 'IDE 모드',
+  google: 'Google 모드',
+};
 
 function applyTheme(theme) {
-  const isLight = theme === 'light';
-  document.body.classList.toggle('light-mode', isLight);
-  el('btn-theme-toggle').textContent = isLight ? '🌙 다크모드' : '☀️ 화이트모드';
-  try { localStorage.setItem(THEME_STORAGE_KEY, isLight ? 'light' : 'dark'); } catch (e) { /* ignore */ }
+  const nextTheme = Object.prototype.hasOwnProperty.call(THEME_LABELS, theme) ? theme : 'dark';
+  document.body.classList.toggle('light-mode', nextTheme === 'light');
+  document.body.dataset.uiTheme = nextTheme;
+  el('btn-theme-toggle').textContent = THEME_LABELS[nextTheme];
+  document.querySelectorAll('.theme-option').forEach(option => {
+    const selected = option.dataset.theme === nextTheme;
+    option.classList.toggle('selected', selected);
+    option.setAttribute('aria-pressed', String(selected));
+  });
+  try { localStorage.setItem(THEME_STORAGE_KEY, nextTheme); } catch (e) { /* ignore */ }
 }
 
 function loadTheme() {
@@ -765,8 +777,24 @@ function loadTheme() {
 }
 
 applyTheme(loadTheme());
-el('btn-theme-toggle').addEventListener('click', () => {
-  applyTheme(document.body.classList.contains('light-mode') ? 'dark' : 'light');
+const themeToggle = el('btn-theme-toggle');
+const themePicker = el('theme-picker');
+themeToggle.addEventListener('click', () => {
+  const isOpen = themePicker.classList.toggle('hidden');
+  themeToggle.setAttribute('aria-expanded', String(!isOpen));
+});
+document.querySelectorAll('.theme-option').forEach(option => {
+  option.addEventListener('click', () => {
+    applyTheme(option.dataset.theme);
+    themePicker.classList.add('hidden');
+    themeToggle.setAttribute('aria-expanded', 'false');
+  });
+});
+document.addEventListener('click', event => {
+  if (!event.target.closest('.theme-controls')) {
+    themePicker.classList.add('hidden');
+    themeToggle.setAttribute('aria-expanded', 'false');
+  }
 });
 
 // 좁은 화면에서는 게임 메뉴를 우선 노출하고, 좌우 보조 패널은 아이콘으로 열고 닫습니다.
