@@ -28,7 +28,16 @@
       <button id="btn-logout-main" class="main-logout-btn" type="button">로그아웃</button>
       <button id="btn-admin-open" class="admin-only-btn hidden" type="button">🛠️ 관리자 화면</button>
     </div>
-    <button id="btn-theme-toggle" class="theme-toggle-btn" type="button">☀️ 화이트모드</button>
+    <div class="theme-controls" aria-label="화면 테마">
+      <button id="btn-theme-toggle" class="theme-toggle-btn" type="button" aria-expanded="false" aria-controls="theme-picker">☀️ 화이트모드</button>
+      <div id="theme-picker" class="theme-picker hidden" role="group" aria-label="테마 선택">
+        <div class="theme-picker-title">화면 스타일</div>
+        <button class="theme-option" type="button" data-theme="dark"><span class="theme-option-swatch swatch-dark"></span><span><strong>다크</strong><small>기본 게임 화면</small></span></button>
+        <button class="theme-option" type="button" data-theme="light"><span class="theme-option-swatch swatch-light"></span><span><strong>화이트</strong><small>따뜻한 밝은 화면</small></span></button>
+        <button class="theme-option" type="button" data-theme="ide"><span class="theme-option-swatch swatch-ide"></span><span><strong>IDE 모드</strong><small>개발 환경 스타일</small></span></button>
+        <button class="theme-option" type="button" data-theme="google"><span class="theme-option-swatch swatch-google"></span><span><strong>Google 모드</strong><small>깔끔한 검색 화면 스타일</small></span></button>
+      </div>
+    </div>
     <button id="btn-notification-toggle" class="notification-toggle-btn" type="button">🔔 알림 켜기</button>
     <div class="home-notice" role="status" aria-label="테스트 기간 공지">
       <div class="home-notice-title">📢 테스트 기간 안내</div>
