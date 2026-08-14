@@ -111,6 +111,7 @@
           <div class="game-category-heading"><span class="game-category-icon">🏆</span><div><h2>스페셜 게임</h2><p>점수와 기록에 도전해요</p></div></div>
           <div class="game-category-games">
             <button id="mode-gukbap" data-mode="gukbap" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🍲</span><span class="game-mode-name">안성국밥</span></button>
+            <button id="mode-pepper" data-mode="pepper" class="mode-btn-big game-mode-btn pepper-new-btn" type="button"><span class="game-mode-new-badge">NEW</span><span class="game-mode-icon">🫙</span><span class="game-mode-name">후추 공방</span></button>
             <button id="mode-horse" data-mode="horse" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">🐎</span><span class="game-mode-name">경마게임</span></button>
             <button id="mode-csquiz" data-mode="csquiz" class="mode-btn-big game-mode-btn" type="button"><span class="game-mode-icon">💻</span><span class="game-mode-name">CS 지식대결</span></button>
           </div>
@@ -351,6 +352,10 @@
   <section id="view-lobby" class="view hidden">
     <button id="btn-lobby-home" class="top-back-btn" type="button">← 메인화면으로 가기</button>
     <h1>대기실 <span id="room-code-label"></span></h1>
+    <aside id="ssafy-lobby-ranking" class="card ssafy-lobby-ranking hidden" aria-label="싸피게임 랭킹">
+      <div class="ssafy-lobby-ranking-heading"><span>🏆 싸피게임 랭킹</span><small>누적 최고 점수</small></div>
+      <ol id="ssafy-lobby-ranking-list"></ol>
+    </aside>
     <ul id="player-list" class="player-list"></ul>
     <div id="tug-team-setup" class="card tug-team-setup hidden">
       <p class="section-hint">이름을 드래그해서 원하는 팀으로 옮겨주세요. 내 이름만 이동할 수 있어요.</p>
@@ -435,10 +440,11 @@
     <p class="timer" id="song-timer"></p>
     <div class="song-player-card">
       <div class="song-video-wrap">
-        <iframe id="song-youtube-player" title="음원 재생" aria-hidden="true" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        <iframe id="song-youtube-player" title="음원 재생" aria-hidden="true" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
+      <button id="song-play" class="song-audio-action hidden" type="button">▶️ 음원 재생</button>
       <button id="song-replay" class="secondary-btn" type="button">🔁 다시 재생</button>
-      <p class="song-player-note">뮤직비디오 하이라이트 30초만 재생되며, 재생 조작은 제한되고 다시 재생만 가능합니다.</p>
+      <p class="song-player-note">뮤직비디오 하이라이트 30초만 재생돼요. 모바일·아이폰은 음원 재생 버튼을 한 번 눌러 주세요.</p>
     </div>
     <div class="song-answer-card">
       <div class="song-answer-row">
@@ -747,6 +753,88 @@
       <span id="gukbap-progress-label"></span>
     </div>
     <ul id="gukbap-others" class="score-board"></ul>
+  </section>
+
+  <!-- PEPPER WORKSHOP INTRO -->
+  <section id="view-pepper-intro" class="view hidden">
+    <div class="pepper-intro-shell">
+      <span class="pepper-eyebrow">PEPPER WORKSHOP · HOW TO PLAY</span>
+      <h1>🫙 후추 공방</h1>
+      <p class="pepper-intro-lead">5단계를 빠르게 완성하고 나만의 후추 제조 기록을 만들어 보세요!</p>
+      <div class="pepper-intro-rules">
+        <div><b>01 열매 수확</b><span>나무에 달린 초록 후추 열매를 모두 클릭해요.</span></div>
+        <div><b>02 건조 작업</b><span>문을 열고 닫은 뒤 건조를 시작하고, 55~70%에서 멈춰요.</span></div>
+        <div><b>03 이물질 선별</b><span>나뭇가지와 먼지를 하나씩 클릭해 제거해요.</span></div>
+        <div><b>04 분쇄</b><span>후추통을 여러 번 클릭해 후추를 곱게 갈아요.</span></div>
+        <div><b>05 미역국에 뿌리기</b><span>후추통을 잡고 미역국을 여러 번 클릭해요.</span></div>
+      </div>
+      <div class="pepper-intro-notice"><strong>총 제한시간 60초</strong><span>빠를수록 S·A·B·C 등급에 가까워져요. 시간 초과는 F 탈락!</span></div>
+      <div class="pepper-intro-actions">
+        <button id="btn-pepper-intro-back" class="secondary-btn" type="button">메인으로 돌아가기</button>
+        <button id="btn-pepper-start" type="button">게임 시작</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PEPPER WORKSHOP GAME -->
+  <section id="view-pepper" class="view hidden">
+    <button id="btn-pepper-home" class="top-back-btn pepper-back-btn" type="button">← 메인으로 돌아가기</button>
+    <div class="pepper-shell">
+      <div class="pepper-heading-row">
+        <div>
+          <p class="pepper-eyebrow">PEPPER WORKSHOP · TIME ATTACK</p>
+          <h1>후추 공방</h1>
+          <p id="pepper-stage-note" class="pepper-stage-note">열매를 하나씩 수확해 후추를 완성해 보세요.</p>
+        </div>
+        <div class="pepper-timer-panel">
+          <div class="pepper-time-progress-box" aria-label="남은 제한 시간">
+            <div id="pepper-time-progress" class="pepper-time-progress" role="progressbar" aria-label="남은 시간" aria-valuemin="0" aria-valuemax="60" aria-valuenow="60">
+              <div id="pepper-time-progress-fill" class="pepper-time-progress-fill"></div>
+            </div>
+            <div class="pepper-time-progress-scale"><span>60초</span><span>남은 시간</span><span>0초</span></div>
+          </div>
+          <div id="pepper-timer-card" class="pepper-timer-card" aria-live="polite"><span>걸린 시간</span><strong id="pepper-timer">0.0s</strong></div>
+        </div>
+      </div>
+
+      <div class="pepper-progress" aria-label="후추 제조 단계">
+        <div class="pepper-progress-step is-current" data-pepper-step="1"><span>01</span><b>수확</b></div>
+        <i></i>
+        <div class="pepper-progress-step" data-pepper-step="2"><span>02</span><b>건조</b></div>
+        <i></i>
+        <div class="pepper-progress-step" data-pepper-step="3"><span>03</span><b>선별</b></div>
+        <i></i>
+        <div class="pepper-progress-step" data-pepper-step="4"><span>04</span><b>분쇄</b></div>
+        <i></i>
+        <div class="pepper-progress-step" data-pepper-step="5"><span>05</span><b>뿌리기</b></div>
+      </div>
+
+      <div id="pepper-workbench" class="pepper-workbench">
+        <div class="pepper-stage-copy">
+          <span id="pepper-stage-kicker" class="pepper-stage-kicker">STAGE 01</span>
+          <h2 id="pepper-stage-title">열매 수확</h2>
+          <p id="pepper-stage-help">나무에 달린 초록 후추 열매를 모두 클릭하세요.</p>
+          <div id="pepper-stage-count" class="pepper-stage-count">0 / 14 수확</div>
+        </div>
+        <div id="pepper-canvas" class="pepper-canvas"></div>
+        <div class="pepper-stage-footer">
+          <span id="pepper-feedback" class="pepper-feedback" aria-live="polite">준비되면 바로 시작합니다.</span>
+        </div>
+      </div>
+      <div id="pepper-result" class="pepper-result hidden" aria-live="polite">
+        <div class="pepper-result-art-wrap"><img id="pepper-result-art" src="/assets/pepper/result-1.png" alt="후추 공방 결과 캐릭터" /></div>
+        <div class="pepper-result-copy">
+          <span class="pepper-eyebrow">WORKSHOP COMPLETE</span>
+          <div id="pepper-result-grade" class="pepper-result-grade">S 등급</div>
+          <h2 id="pepper-result-title">후추 제조 완료!</h2>
+          <p id="pepper-result-message"></p>
+          <div class="pepper-final-time"><span>최종 기록</span><strong id="pepper-result-time">0.0s</strong></div>
+          <div class="pepper-quality-score"><span>건조 품질 점수</span><strong id="pepper-drying-score">100점</strong></div>
+          <div id="pepper-result-breakdown" class="pepper-result-breakdown"></div>
+          <div class="pepper-result-actions"><button id="pepper-result-restart" type="button">다시 도전</button><button id="pepper-result-home" class="secondary-btn" type="button">메인으로</button></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- SSAFY ONION GAME -->

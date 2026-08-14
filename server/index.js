@@ -684,16 +684,20 @@ function broadcastState(room) {
 }
 
 // 게임별 점수 단위가 달라도 한 게임에서 랭킹에 반영되는 점수는 최대 10점으로 통일합니다.
-function pointsFromScores(room) {
+function pointsFromScores(room, maxPoints = 10) {
   const points = {};
   room.players.forEach(p => {
-    points[p.id] = Math.max(0, Math.min(10, Math.floor(Number(p.score) || 0)));
+    points[p.id] = Math.max(0, Math.min(maxPoints, Math.floor(Number(p.score) || 0)));
   });
   return points;
 }
 
 function broadcastLeaderboard() {
   io.emit('leaderboard_update', accounts.getLeaderboardWithPresence(phone => onlineSockets.has(phone)));
+}
+
+function broadcastSsafyLeaderboard() {
+  io.emit('ssafy_leaderboard_update', accounts.getGameLeaderboard('ssafy', phone => onlineSockets.has(phone)));
 }
 
 function broadcastPersonDb() {
@@ -754,14 +758,14 @@ function quickJoinPreview(socketId) {
 
 // Adds points to each player's persistent account and refreshes the global
 // leaderboard. pointsMap: { playerId: pointsDelta }
-function awardPointsForGame(room, pointsMap) {
+function awardPointsForGame(room, pointsMap, gameKey = null, maxPoints = 10) {
   let changed = false;
   Object.entries(pointsMap).forEach(([playerId, points]) => {
-    const normalizedPoints = Math.max(-10, Math.min(10, Math.floor(Number(points) || 0)));
+    const normalizedPoints = Math.max(-maxPoints, Math.min(maxPoints, Math.floor(Number(points) || 0)));
     if (!normalizedPoints) return;
     const player = room.players.find(p => p.id === playerId);
     if (player?.accountPhone) {
-      accounts.addScore(player.accountPhone, normalizedPoints);
+      accounts.addScore(player.accountPhone, normalizedPoints, gameKey);
       changed = true;
     }
   });
@@ -1489,7 +1493,7 @@ function endSsafyGame(room, score, highestLevel) {
   if (room.phase !== 'ssafy_playing') return;
   const player = room.players[0];
   if (!player) return;
-  player.score = Math.max(0, Math.min(10, Math.floor(Number(score) || 0)));
+  player.score = Math.max(0, Math.min(500, Math.floor(Number(score) || 0)));
   room.phase = 'result';
   clearRoomTimer(room.code);
   clearSubTimer(room.code);
@@ -1500,7 +1504,9 @@ function endSsafyGame(room, score, highestLevel) {
     winners: player.score > 0 ? [player.name] : [],
     highestLevel: Math.max(1, Math.min(ssafyDb.MAX_GAME_LEVEL, Math.floor(Number(highestLevel) || 1))),
   });
-  awardPointsForGame(room, pointsFromScores(room));
+  awardPointsForGame(room, pointsFromScores(room, 100), null, 100);
+  if (player.accountPhone && player.score > 0) accounts.addGameScore(player.accountPhone, 'ssafy', player.score);
+  broadcastSsafyLeaderboard();
 }
 
 // ---------------- Goalkeeper one-on-one game flow ----------------
@@ -2460,6 +2466,7 @@ io.on('connection', socket => {
     addOnlineSocket(socket);
     cb?.(accounts.getProfile(acc.phone));
     socket.emit('leaderboard_update', accounts.getLeaderboardWithPresence(phone => onlineSockets.has(phone)));
+    socket.emit('ssafy_leaderboard_update', accounts.getGameLeaderboard('ssafy', phone => onlineSockets.has(phone)));
     socket.emit('friend_list_update', friendListFor(acc.phone));
     socket.emit('friend_request_update', friendRequestsFor(acc.phone));
     socket.emit('person_db_update', personDbPayload(socket));
@@ -3151,6 +3158,10 @@ io.on('connection', socket => {
 
   socket.on('ssafy_get_photos', cb => {
     cb?.({ photos: ssafyDb.getAll(), count: ssafyDb.getAll().filter(photo => photo.imageDataUrl).length, ready: ssafyDb.isComplete() });
+  });
+
+  socket.on('ssafy_leaderboard_get', cb => {
+    cb?.({ leaderboard: accounts.getGameLeaderboard('ssafy', phone => onlineSockets.has(phone)) });
   });
 
   socket.on('ssafy_save_photo', ({ level, imageDataUrl } = {}, cb) => {

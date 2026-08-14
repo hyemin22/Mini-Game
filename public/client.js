@@ -29,6 +29,7 @@ const MODE_LABEL = {
   goalkeeper: '🥅 골키퍼 게임',
   foodroulette: '🎰 메뉴추천 룰렛',
   band: '🎶 합주 게임',
+  pepper: '🫙 후추 공방',
 };
 const MODE_PREVIEW = {
   mafia: { icon: '🕵️', name: '마피아 게임', description: '역할을 나누고 토론과 투표로 마피아를 찾아내는 게임', ratings: { '추리력': 5, '순발력': 3, '소통력': 5 } },
@@ -613,6 +614,13 @@ el('btn-back-mode').addEventListener('click', () => {
 
 function selectMode(mode) {
   if (!MODE_LABEL[mode]) return;
+  if (mode === 'pepper') {
+    state.selectedMode = mode;
+    state.mode = mode;
+    showView('view-pepper-intro');
+    window.scrollTo(0, 0);
+    return;
+  }
   state.selectedMode = mode;
   state.mode = mode;
   prepareSsafyEntry(mode);
@@ -1735,6 +1743,29 @@ socket.on('friend_room_invite', invite => {
   banner.classList.remove('hidden');
 });
 
+function renderSsafyLeaderboard(entries = []) {
+  const list = el('ssafy-lobby-ranking-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (entries.length === 0) {
+    list.innerHTML = '<li class="ssafy-ranking-empty">아직 기록이 없어요.</li>';
+    return;
+  }
+  entries.slice(0, 10).forEach((entry, index) => {
+    const item = document.createElement('li');
+    item.className = entry.nickname === state.account?.nickname ? 'is-me' : '';
+    const rank = document.createElement('b');
+    rank.textContent = `${index + 1}`;
+    const name = document.createElement('span');
+    name.className = 'ssafy-ranking-name';
+    name.textContent = entry.nickname;
+    const score = document.createElement('strong');
+    score.textContent = `${Math.max(0, Number(entry.score) || 0)}점`;
+    item.append(rank, name, score);
+    list.appendChild(item);
+  });
+}
+
 // ---------- lobby ----------
 el('btn-start').addEventListener('click', () => socket.emit('start_game'));
 
@@ -1805,7 +1836,9 @@ socket.on('room_update', data => {
     if (isQuiz) ready = ready && (state.quizItemCount > 0 || state.personDbCount > 0);
     const isSsafy = state.mode === 'ssafy';
     el('ssafy-upload-area').classList.toggle('hidden', !isSsafy);
+    el('ssafy-lobby-ranking').classList.toggle('hidden', !isSsafy);
     if (isSsafy) {
+      socket.emit('ssafy_leaderboard_get', payload => renderSsafyLeaderboard(payload?.leaderboard || []));
       socket.emit('ssafy_get_photos', payload => {
         if (payload?.photos) renderSsafyLobbyPhotos(payload.photos);
       });
@@ -1828,6 +1861,8 @@ socket.on('room_update', data => {
     updateResultActions();
   }
 });
+
+socket.on('ssafy_leaderboard_update', leaderboard => renderSsafyLeaderboard(leaderboard || []));
 
 function renderHorseLeaderboard() {
   const list = el('horse-leaderboard-list');
@@ -2293,19 +2328,28 @@ socket.on('tug_update', ({ position, clicks }) => {
 let currentSongClip = null;
 let songLoadToken = 0;
 
-function loadSongVideo(videoId, startSeconds = 0, clipDurationMs = 30000) {
+function songNeedsPlaybackGesture() {
+  return navigator.maxTouchPoints > 0
+    || 'ontouchstart' in window
+    || window.matchMedia?.('(pointer: coarse)').matches;
+}
+
+function loadSongVideo(videoId, startSeconds = 0, clipDurationMs = 30000, fromUserGesture = false) {
   const loadToken = ++songLoadToken;
   const clipStart = Math.max(0, Number(startSeconds) || 0);
   const clipDuration = Math.max(1, Number(clipDurationMs) || 30000);
   const clipEnd = clipStart + Math.ceil(clipDuration / 1000);
   currentSongClip = { videoId, startSeconds: clipStart, clipDurationMs: clipDuration };
   const player = el('song-youtube-player');
+  const playButton = el('song-play');
   if (!videoId) {
     player.removeAttribute('src');
+    playButton?.classList.add('hidden');
     return;
   }
+  const shouldAutoplay = fromUserGesture || !songNeedsPlaybackGesture();
   const params = new URLSearchParams({
-    autoplay: '1',
+    autoplay: shouldAutoplay ? '1' : '0',
     controls: '0',
     disablekb: '1',
     fs: '0',
@@ -2316,14 +2360,17 @@ function loadSongVideo(videoId, startSeconds = 0, clipDurationMs = 30000) {
     start: String(clipStart),
     end: String(clipEnd),
   });
+  playButton?.classList.toggle('hidden', shouldAutoplay);
   // 같은 영상 다시 재생도 확실히 새 구간부터 시작하도록 iframe을 교체합니다.
   player.src = 'about:blank';
-  window.setTimeout(() => {
+  const setPlayerSource = () => {
     if (loadToken !== songLoadToken
       || currentSongClip?.videoId !== videoId
       || currentSongClip.startSeconds !== clipStart) return;
     player.src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params}`;
-  }, 0);
+  };
+  if (shouldAutoplay && fromUserGesture) setPlayerSource();
+  else if (shouldAutoplay) window.setTimeout(setPlayerSource, 0);
 }
 
 function stopSongVideo() {
@@ -2337,7 +2384,12 @@ function stopSongVideo() {
 
 el('song-replay').addEventListener('click', () => {
   if (currentSongClip) {
-    loadSongVideo(currentSongClip.videoId, currentSongClip.startSeconds, currentSongClip.clipDurationMs);
+    loadSongVideo(currentSongClip.videoId, currentSongClip.startSeconds, currentSongClip.clipDurationMs, true);
+  }
+});
+el('song-play').addEventListener('click', () => {
+  if (currentSongClip) {
+    loadSongVideo(currentSongClip.videoId, currentSongClip.startSeconds, currentSongClip.clipDurationMs, true);
   }
 });
 el('song-submit').addEventListener('click', () => {
@@ -3453,6 +3505,7 @@ const SSAFY_SETTLE_DELAY_MS = 180;
 const SSAFY_STUCK_RELEASE_MS = 1200;
 const SSAFY_DROP_START_SPEED = 0.9;
 const SSAFY_MAX_GAME_LEVEL = 30;
+const SSAFY_SCORE_CAP = 500;
 let ssafyImages = [];
 let ssafyImageObjects = [];
 let ssafyBalls = [];
@@ -3570,7 +3623,7 @@ function ssafyResolveMerges() {
           settleMs: 0,
           isDropping: false,
         });
-        ssafyScore = Math.min(10, ssafyScore + 1);
+        ssafyScore = Math.min(SSAFY_SCORE_CAP, ssafyScore + level * 5);
         ssafyHighestLevel = Math.max(ssafyHighestLevel, level);
         ssafySetHud();
         merged = true;
@@ -3850,10 +3903,42 @@ function ssafyMoveDropTarget(event) {
 
 ssafyCanvas.addEventListener('pointermove', ssafyMoveDropTarget);
 ssafyCanvas.addEventListener('mousemove', ssafyMoveDropTarget);
+ssafyCanvas.addEventListener('touchstart', event => {
+  if (!event.touches[0]) return;
+  event.preventDefault();
+  ssafyMoveDropTarget(event.touches[0]);
+}, { passive: false });
 ssafyCanvas.addEventListener('touchmove', event => {
-  if (event.touches[0]) ssafyMoveDropTarget(event.touches[0]);
-}, { passive: true });
-ssafyCanvas.addEventListener('pointerdown', event => { event.preventDefault(); ssafyDrop(); });
+  if (!event.touches[0]) return;
+  event.preventDefault();
+  ssafyMoveDropTarget(event.touches[0]);
+}, { passive: false });
+ssafyCanvas.addEventListener('touchend', event => {
+  event.preventDefault();
+  ssafyDrop();
+}, { passive: false });
+let ssafyTouchPointerId = null;
+ssafyCanvas.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+    ssafyTouchPointerId = event.pointerId;
+    ssafyCanvas.setPointerCapture?.(event.pointerId);
+    ssafyMoveDropTarget(event);
+    return;
+  }
+  ssafyDrop();
+});
+ssafyCanvas.addEventListener('pointerup', event => {
+  if (event.pointerId !== ssafyTouchPointerId) return;
+  event.preventDefault();
+  ssafyMoveDropTarget(event);
+  ssafyTouchPointerId = null;
+  ssafyDrop();
+});
+ssafyCanvas.addEventListener('pointercancel', event => {
+  if (event.pointerId !== ssafyTouchPointerId) return;
+  ssafyTouchPointerId = null;
+});
 el('btn-ssafy-drop').addEventListener('click', ssafyDrop);
 document.addEventListener('keydown', event => {
   if (!document.querySelector('#view-ssafy:not(.hidden)')) return;
@@ -4681,6 +4766,413 @@ socket.on('balance_over', ({ results = [], scores = [], winners = [] }) => {
 socket.on('fashion_over', ({ scores, winners }) => {
   const title = winners.length > 0 ? `🏆 패션쇼 우승: ${winners.join(', ')}님!` : '👗 패션쇼 종료!';
   showScoreResult(title, '8라운드 익명 투표 누적 결과 · 라운드 우승 시 1점', scores, winners);
+});
+
+// ---------- pepper workshop ----------
+const PEPPER_ASSET_ROOT = '/assets/pepper';
+const PEPPER_BERRY_TOTAL = 14;
+const PEPPER_DEBRIS_TOTAL = 6;
+const PEPPER_GRIND_TOTAL = 12;
+const PEPPER_SOUP_TOTAL = 8;
+const PEPPER_YELLOW_SEC = 20;
+const PEPPER_ORANGE_SEC = 30;
+const PEPPER_RED_SEC = 45;
+const PEPPER_DISQUALIFY_SEC = 60;
+const PEPPER_DRY_OPTIMAL_START = 55;
+const PEPPER_DRY_OPTIMAL_END = 70;
+const PEPPER_DRY_CYCLE_MS = 2600;
+const PEPPER_STAGE_TARGET_SEC = [5, 0, 4, 4, 4];
+const pepperGame = {
+  stage: 1,
+  startedAt: 0,
+  stageStartedAt: 0,
+  timerId: null,
+  stageTimes: [],
+  stageScores: [],
+  berries: new Set(),
+  dryingPhase: 'door-closed',
+  dryingProgress: 0,
+  dryingAnimationId: null,
+  dryingScore: 100,
+  dryingPenalty: 0,
+  debrisLeft: PEPPER_DEBRIS_TOTAL,
+  grindClicks: 0,
+  soupClicks: 0,
+  pepperHeld: false,
+  done: false,
+};
+
+function pepperAsset(name) {
+  return `${PEPPER_ASSET_ROOT}/${name}`;
+}
+
+function pepperSetCopy(kicker, title, help, count) {
+  el('pepper-stage-kicker').textContent = kicker;
+  el('pepper-stage-title').textContent = title;
+  el('pepper-stage-help').textContent = help;
+  el('pepper-stage-count').textContent = count;
+}
+
+function pepperUpdateProgress() {
+  document.querySelectorAll('[data-pepper-step]').forEach(step => {
+    const stepNumber = Number(step.dataset.pepperStep);
+    step.classList.toggle('is-current', stepNumber === pepperGame.stage);
+    step.classList.toggle('is-done', stepNumber < pepperGame.stage || pepperGame.done);
+  });
+}
+
+function pepperAdvance(nextStage) {
+  cancelPepperDryingAnimation();
+  pepperGame.stageTimes.push(performance.now() - pepperGame.stageStartedAt);
+  pepperGame.stage = nextStage;
+  pepperGame.stageStartedAt = performance.now();
+  pepperUpdateProgress();
+  renderPepperStage();
+}
+
+function pepperButton(className, label) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.setAttribute('aria-label', label);
+  return button;
+}
+
+function renderPepperHarvest() {
+  pepperSetCopy('STAGE 01', '열매 수확', '나무에 달린 초록 후추 열매를 모두 클릭하세요.', `${pepperGame.berries.size} / ${PEPPER_BERRY_TOTAL} 수확`);
+  el('pepper-feedback').textContent = '초록 열매를 찾아 톡톡 따 주세요.';
+  const canvas = el('pepper-canvas');
+  canvas.innerHTML = '<div class="pepper-harvest-scene"><img class="pepper-tree-art" src="' + pepperAsset('tree.png') + '" alt="후추나무" /></div>';
+  const scene = canvas.querySelector('.pepper-harvest-scene');
+  const positions = [[44, 24], [50, 27], [53, 31], [56, 37], [42, 43], [47, 47], [51, 51], [54, 55], [57, 59], [45, 62], [49, 67], [53, 71], [59, 75], [61, 82]];
+  positions.forEach(([left, top], index) => {
+    if (pepperGame.berries.has(index)) return;
+    const berry = pepperButton('pepper-berry-hotspot', `후추 열매 ${index + 1}`);
+    berry.style.left = `${left}%`;
+    berry.style.top = `${top}%`;
+    berry.addEventListener('click', () => {
+      if (pepperGame.stage !== 1) return;
+      pepperGame.berries.add(index);
+      berry.classList.add('is-picked');
+      el('pepper-stage-count').textContent = `${pepperGame.berries.size} / ${PEPPER_BERRY_TOTAL} 수확`;
+      el('pepper-feedback').textContent = pepperGame.berries.size === PEPPER_BERRY_TOTAL ? '수확 완료! 건조기로 옮겨요.' : '좋아요, 한 송이 더 찾아보세요.';
+      if (pepperGame.berries.size === PEPPER_BERRY_TOTAL) window.setTimeout(() => pepperAdvance(2), 240);
+    });
+    scene.appendChild(berry);
+  });
+}
+
+function renderPepperDrying() {
+  const doorClosed = pepperGame.dryingPhase !== 'door-open';
+  const isRunning = pepperGame.dryingPhase === 'running';
+  const isStopped = pepperGame.dryingPhase === 'stopped';
+  const isReady = pepperGame.dryingPhase === 'ready';
+  const phaseLabel = !doorClosed ? '열매를 넣었으면 건조기 문을 닫아 주세요.' : isRunning ? '게이지가 적정 구간에 들어오면 멈춤을 클릭하세요.' : isStopped ? `건조 점수 ${pepperGame.dryingScore}점 · 선별 단계로 이동합니다.` : isReady ? '문이 닫혔어요. 건조 시작을 눌러 주세요.' : '건조기 문을 열고 열매를 확인해 주세요.';
+  pepperSetCopy('STAGE 02', '건조 작업', phaseLabel, isStopped ? `건조 점수 ${pepperGame.dryingScore}점` : isReady || isRunning ? `${Math.round(pepperGame.dryingProgress)}% 건조` : !doorClosed ? '문 열림' : '문 닫힘');
+  el('pepper-feedback').textContent = !doorClosed ? '문을 닫으면 건조 시작 버튼이 활성화됩니다.' : isRunning ? '파란색에서 빨간색으로 게이지가 이동합니다. 적정 구간에서 멈춰 주세요.' : isStopped ? (pepperGame.dryingScore === 100 ? '완벽한 건조예요! 이물질 선별로 넘어갑니다.' : `적정 구간에서 ${pepperGame.dryingPenalty}점만큼 벗어났어요.`) : isReady ? '건조 시작을 누른 뒤 적정 구간(55~70%)에서 멈춤을 클릭하세요.' : '건조기를 클릭해 문을 열어 주세요.';
+  const canvas = el('pepper-canvas');
+  canvas.innerHTML = '<div class="pepper-dryer-scene"><div class="pepper-dryer-visual"><div class="pepper-dryer-glow"></div><button id="pepper-dryer-door" class="pepper-dryer-button" type="button" aria-label="건조기 문"></button></div><div class="pepper-drying-controls"><div class="pepper-drying-progress-wrap"><div class="pepper-drying-optimal" aria-label="적정 건조 구간"></div><div id="pepper-drying-fill" class="pepper-drying-fill"></div><div id="pepper-drying-marker" class="pepper-drying-marker"></div></div><div class="pepper-drying-scale"><span>0% 덜 건조</span><b id="pepper-drying-percent">0%</b><span>100% 과건조</span></div><div class="pepper-drying-buttons"><button id="pepper-drying-start" type="button">건조 시작</button><button id="pepper-drying-stop" class="secondary-btn" type="button" disabled>멈춤</button></div><small class="pepper-drying-optimal-label">적정 구간 55~70%</small></div></div>';
+  const door = el('pepper-dryer-door');
+  const dryer = canvas.querySelector('.pepper-dryer-button');
+  const dryerImage = document.createElement('img');
+  dryerImage.className = 'pepper-dryer-image';
+  dryerImage.src = pepperAsset(doorClosed ? 'dryer-closed.png' : 'dryer-open.png');
+  dryerImage.alt = '식품건조기';
+  dryerImage.draggable = false;
+  dryer.appendChild(dryerImage);
+  dryer.disabled = isReady || isRunning || isStopped;
+  dryer.title = doorClosed ? '건조기 문 열기' : '건조기 문 닫기';
+  door.addEventListener('click', () => {
+    if (pepperGame.dryingPhase === 'door-closed') pepperGame.dryingPhase = 'door-open';
+    else if (pepperGame.dryingPhase === 'door-open') pepperGame.dryingPhase = 'ready';
+    else return;
+    renderPepperDrying();
+  });
+  const startButton = el('pepper-drying-start');
+  const stopButton = el('pepper-drying-stop');
+  startButton.disabled = !isReady;
+  stopButton.disabled = !isRunning;
+  startButton.textContent = isStopped ? '건조 완료' : isRunning ? '건조 중...' : '건조 시작';
+  startButton.addEventListener('click', startPepperDrying);
+  stopButton.addEventListener('click', stopPepperDrying);
+  updatePepperDryingVisual();
+}
+
+function updatePepperDryingVisual() {
+  const fill = el('pepper-drying-fill');
+  const marker = el('pepper-drying-marker');
+  const percent = el('pepper-drying-percent');
+  if (!fill || !marker || !percent) return;
+  fill.style.width = `${pepperGame.dryingProgress}%`;
+  marker.style.left = `${pepperGame.dryingProgress}%`;
+  percent.textContent = `${Math.round(pepperGame.dryingProgress)}%`;
+}
+
+function cancelPepperDryingAnimation() {
+  if (pepperGame.dryingAnimationId) window.cancelAnimationFrame(pepperGame.dryingAnimationId);
+  pepperGame.dryingAnimationId = null;
+}
+
+function startPepperDrying() {
+  if (pepperGame.dryingPhase !== 'ready') return;
+  pepperGame.dryingPhase = 'running';
+  const startedAt = performance.now();
+  const tick = now => {
+    if (pepperGame.dryingPhase !== 'running') return;
+    pepperGame.dryingProgress = Math.min(100, ((now - startedAt) / PEPPER_DRY_CYCLE_MS) * 100);
+    updatePepperDryingVisual();
+    el('pepper-stage-count').textContent = `${Math.round(pepperGame.dryingProgress)}% 건조`;
+    if (pepperGame.dryingProgress < 100) pepperGame.dryingAnimationId = window.requestAnimationFrame(tick);
+  };
+  renderPepperDrying();
+  pepperGame.dryingAnimationId = window.requestAnimationFrame(tick);
+}
+
+function stopPepperDrying() {
+  if (pepperGame.dryingPhase !== 'running') return;
+  pepperGame.dryingPhase = 'stopped';
+  cancelPepperDryingAnimation();
+  const distance = pepperGame.dryingProgress < PEPPER_DRY_OPTIMAL_START
+    ? PEPPER_DRY_OPTIMAL_START - pepperGame.dryingProgress
+    : pepperGame.dryingProgress > PEPPER_DRY_OPTIMAL_END
+      ? pepperGame.dryingProgress - PEPPER_DRY_OPTIMAL_END
+      : 0;
+  pepperGame.dryingPenalty = Math.min(100, Math.round(distance * 2.5));
+  pepperGame.dryingScore = Math.max(0, 100 - pepperGame.dryingPenalty);
+  renderPepperDrying();
+  window.setTimeout(() => pepperAdvance(3), 700);
+}
+
+function renderPepperSorting() {
+  pepperSetCopy('STAGE 03', '이물질 선별', '통후추에 섞인 나뭇가지와 먼지를 하나씩 제거하세요.', `${PEPPER_DEBRIS_TOTAL - pepperGame.debrisLeft} / ${PEPPER_DEBRIS_TOTAL} 제거`);
+  el('pepper-feedback').textContent = '갈색 가지와 먼지 더미를 모두 클릭해 주세요.';
+  const canvas = el('pepper-canvas');
+  canvas.innerHTML = '<div class="pepper-sorting-scene"><img class="pepper-sorting-pile" src="' + pepperAsset('black-pepper.png') + '" alt="건조된 통후추" /></div>';
+  const scene = canvas.querySelector('.pepper-sorting-scene');
+  const items = [['twigs.png', 18, 22, '나뭇가지'], ['dust.png', 66, 25, '먼지'], ['twigs.png', 41, 39, '나뭇가지'], ['dust.png', 75, 55, '먼지'], ['twigs.png', 25, 64, '나뭇가지'], ['dust.png', 54, 69, '먼지']];
+  items.forEach(([asset, left, top, label], index) => {
+    const item = pepperButton(`pepper-debris pepper-debris-${asset.startsWith('dust') ? 'dust' : 'twig'}`, label);
+    item.style.left = `${left}%`;
+    item.style.top = `${top}%`;
+    item.style.backgroundImage = `url("${pepperAsset(asset)}")`;
+    item.addEventListener('click', () => {
+      if (item.classList.contains('is-removed')) return;
+      item.classList.add('is-removed');
+      pepperGame.debrisLeft -= 1;
+      el('pepper-stage-count').textContent = `${PEPPER_DEBRIS_TOTAL - pepperGame.debrisLeft} / ${PEPPER_DEBRIS_TOTAL} 제거`;
+      if (pepperGame.debrisLeft === 0) {
+        el('pepper-feedback').textContent = '깨끗해졌어요! 분쇄기로 이동합니다.';
+        window.setTimeout(() => pepperAdvance(4), 260);
+      }
+    });
+    scene.appendChild(item);
+  });
+}
+
+function renderPepperGrinding() {
+  pepperSetCopy('STAGE 04', '분쇄', '후추통 뚜껑을 빠르게 여러 번 클릭해 곱게 갈아 주세요.', `${pepperGame.grindClicks} / ${PEPPER_GRIND_TOTAL} 회전`);
+  el('pepper-feedback').textContent = '뚜껑을 연타하면 고운 후추가 쏟아져요.';
+  const canvas = el('pepper-canvas');
+  canvas.innerHTML = '<div class="pepper-grinding-scene"><button class="pepper-mill-button" type="button" aria-label="후추통"></button></div>';
+  const mill = canvas.querySelector('.pepper-mill-button');
+  mill.style.backgroundImage = `url("${pepperAsset('pepper-mill.png')}")`;
+  const scene = canvas.querySelector('.pepper-grinding-scene');
+  mill.addEventListener('click', () => {
+    if (pepperGame.grindClicks >= PEPPER_GRIND_TOTAL) return;
+    pepperGame.grindClicks += 1;
+    mill.classList.remove('is-turning');
+    void mill.offsetWidth;
+    mill.classList.add('is-turning');
+    const dust = document.createElement('span');
+    dust.className = 'pepper-grind-pop';
+    dust.style.left = `${46 + Math.random() * 12}%`;
+    dust.style.top = `${58 + Math.random() * 12}%`;
+    scene.appendChild(dust);
+    el('pepper-stage-count').textContent = `${pepperGame.grindClicks} / ${PEPPER_GRIND_TOTAL} 회전`;
+    if (pepperGame.grindClicks === PEPPER_GRIND_TOTAL) {
+      el('pepper-feedback').textContent = '분쇄 완료! 이제 미역국에 톡톡 뿌려요.';
+      window.setTimeout(() => pepperAdvance(5), 300);
+    }
+  });
+}
+
+function renderPepperSprinkling() {
+  pepperSetCopy('STAGE 05', '미역국에 뿌리기', pepperGame.pepperHeld ? '미역국을 여러 번 클릭해 후추를 뿌리세요.' : '후추통을 먼저 클릭해 손에 쥐어 주세요.', pepperGame.pepperHeld ? `${pepperGame.soupClicks} / ${PEPPER_SOUP_TOTAL} 톡톡` : '후추통 잡기');
+  el('pepper-feedback').textContent = pepperGame.pepperHeld ? '국물 위를 클릭하면 향긋한 후추가 톡톡!' : '후추통을 클릭하면 손에 쥡니다.';
+  const canvas = el('pepper-canvas');
+  canvas.innerHTML = '<div class="pepper-soup-scene"><button class="pepper-shaker-button" type="button" aria-label="후추통"></button><button class="pepper-soup-hotspot" type="button" aria-label="미역국"></button></div>';
+  const shaker = canvas.querySelector('.pepper-shaker-button');
+  const shakerAsset = pepperGame.pepperHeld ? 'pepper-hand-shaker.png' : 'pepper-mill.png';
+  shaker.innerHTML = `<img class="pepper-shaker-image" src="${pepperAsset(shakerAsset)}" alt="" draggable="false">`;
+  shaker.classList.toggle('is-held', pepperGame.pepperHeld);
+  shaker.addEventListener('click', () => {
+    pepperGame.pepperHeld = true;
+    renderPepperSprinkling();
+  });
+  const soup = canvas.querySelector('.pepper-soup-hotspot');
+  soup.addEventListener('click', event => {
+    if (!pepperGame.pepperHeld || pepperGame.soupClicks >= PEPPER_SOUP_TOTAL) return;
+    pepperGame.soupClicks += 1;
+    const sprinkle = document.createElement('span');
+    sprinkle.className = 'pepper-sprinkle';
+    sprinkle.style.left = `${39 + Math.random() * 22}%`;
+    sprinkle.style.top = `${16 + Math.random() * 7}%`;
+    event.currentTarget.parentElement.appendChild(sprinkle);
+    el('pepper-stage-count').textContent = `${pepperGame.soupClicks} / ${PEPPER_SOUP_TOTAL} 톡톡`;
+    if (pepperGame.soupClicks === PEPPER_SOUP_TOTAL) {
+      el('pepper-feedback').textContent = '완성! 따뜻한 미역국이 완성됐어요.';
+      window.setTimeout(pepperFinish, 420);
+    }
+  });
+}
+
+function renderPepperStage() {
+  if (pepperGame.stage === 1) renderPepperHarvest();
+  if (pepperGame.stage === 2) renderPepperDrying();
+  if (pepperGame.stage === 3) renderPepperSorting();
+  if (pepperGame.stage === 4) renderPepperGrinding();
+  if (pepperGame.stage === 5) renderPepperSprinkling();
+}
+
+function pepperStageScores(disqualified = false) {
+  const scores = Array.from({ length: 5 }, (_, index) => {
+    const time = pepperGame.stageTimes[index];
+    if (!time || (disqualified && index === pepperGame.stageTimes.length - 1)) return 0;
+    if (index === 1) return pepperGame.dryingScore;
+    const seconds = time / 1000;
+    const target = PEPPER_STAGE_TARGET_SEC[index];
+    return Math.max(0, Math.min(100, Math.round(100 - Math.max(0, seconds - target) * 18)));
+  });
+  pepperGame.stageScores = scores;
+  return scores;
+}
+
+function updatePepperTimer(seconds) {
+  const card = el('pepper-timer-card');
+  const timer = el('pepper-timer');
+  const progressBox = document.querySelector('.pepper-time-progress-box');
+  const progress = el('pepper-time-progress');
+  const progressFill = el('pepper-time-progress-fill');
+  const remainingSeconds = Math.max(0, PEPPER_DISQUALIFY_SEC - seconds);
+  const remainingRatio = Math.max(0, Math.min(1, remainingSeconds / PEPPER_DISQUALIFY_SEC));
+  let statusClass = '';
+  if (seconds >= PEPPER_DISQUALIFY_SEC) statusClass = 'is-disqualified';
+  else if (seconds >= PEPPER_RED_SEC) statusClass = 'is-red';
+  else if (seconds >= PEPPER_ORANGE_SEC) statusClass = 'is-orange';
+  else if (seconds >= PEPPER_YELLOW_SEC) statusClass = 'is-yellow';
+  const progressColor = statusClass === 'is-disqualified' ? '#8f2630'
+    : statusClass === 'is-red' ? '#f04f46'
+      : statusClass === 'is-orange' ? '#ff922e'
+        : statusClass === 'is-yellow' ? '#ffd447'
+          : '#8fd36d';
+  const progressShadow = statusClass === 'is-disqualified' ? '0 0 12px rgba(143,38,48,0.5)'
+    : statusClass === 'is-red' ? '0 0 12px rgba(240,79,70,0.48)'
+      : statusClass === 'is-orange' ? '0 0 10px rgba(255,146,46,0.42)'
+        : statusClass === 'is-yellow' ? '0 0 10px rgba(255,212,71,0.4)'
+          : '0 0 10px rgba(143,211,109,0.35)';
+  card.classList.remove('is-yellow', 'is-orange', 'is-red', 'is-disqualified');
+  if (statusClass) card.classList.add(statusClass);
+  if (progressBox) {
+    progressBox.classList.remove('is-yellow', 'is-orange', 'is-red', 'is-disqualified');
+    if (statusClass) progressBox.classList.add(statusClass);
+  }
+  if (progressFill) {
+    progressFill.style.width = `${remainingRatio * 100}%`;
+    progressFill.style.background = progressColor;
+    progressFill.style.boxShadow = progressShadow;
+  }
+  if (progress) progress.setAttribute('aria-valuenow', remainingSeconds.toFixed(1));
+  timer.textContent = `${seconds.toFixed(1)}s`;
+}
+
+function pepperFinish(disqualified = false) {
+  if (pepperGame.done) return;
+  pepperGame.done = true;
+  cancelPepperDryingAnimation();
+  if (disqualified) {
+    pepperGame.dryingScore = 0;
+    pepperGame.dryingPenalty = 100;
+  }
+  pepperGame.stageTimes.push(performance.now() - pepperGame.stageStartedAt);
+  pepperGame.elapsed = performance.now() - pepperGame.startedAt;
+  if (pepperGame.timerId) window.clearInterval(pepperGame.timerId);
+  pepperGame.timerId = null;
+  const seconds = pepperGame.elapsed / 1000;
+  const grade = disqualified ? 'F'
+    : seconds <= PEPPER_YELLOW_SEC && pepperGame.dryingScore >= 90 ? 'S'
+      : seconds <= PEPPER_ORANGE_SEC && pepperGame.dryingScore >= 75 ? 'A'
+        : seconds <= PEPPER_RED_SEC && pepperGame.dryingScore >= 50 ? 'B'
+          : 'C';
+  const result = grade === 'F' ? { asset: 'result-4.png', title: '시간 초과로 탈락!', message: `${PEPPER_DISQUALIFY_SEC}초 안에 완성하지 못했어요.`, tier: 'DISQUALIFIED' }
+    : grade === 'S' ? { asset: 'result-1.png', title: '장인급 후추 제조!', message: '가장 빠르고 정확하게 완성했어요.', tier: 'SPEED MASTER' }
+      : grade === 'A' ? { asset: 'result-2.png', title: '훌륭한 한 통 완성!', message: '빠른 손놀림으로 후추를 완성했어요.', tier: 'QUICK HANDS' }
+        : grade === 'B' ? { asset: 'result-3.png', title: '차분하게 완주 성공!', message: '단계마다 꼼꼼하게 후추를 만들어 냈어요.', tier: 'STEADY MAKER' }
+          : { asset: 'result-4.png', title: '후추 제조 완료!', message: '끝까지 포기하지 않고 완성했어요.', tier: 'WORKSHOP ROOKIE' };
+  updatePepperTimer(seconds);
+  el('pepper-result-art').src = pepperAsset(result.asset);
+  el('pepper-result-grade').textContent = `${grade} 등급`;
+  el('pepper-result-grade').className = `pepper-result-grade grade-${grade.toLowerCase()}`;
+  el('pepper-result-title').textContent = result.title;
+  el('pepper-result-message').textContent = `${result.message} · ${result.tier}`;
+  el('pepper-result-time').textContent = `${seconds.toFixed(1)}s`;
+  el('pepper-drying-score').textContent = `${pepperGame.dryingScore}점`;
+  const names = ['수확', '건조', '선별', '분쇄', '뿌리기'];
+  const stageScores = pepperStageScores(disqualified);
+  el('pepper-result-breakdown').innerHTML = stageScores.map((score, index) => `<span><b>${names[index]}</b><strong>${score}점</strong></span>`).join('');
+  el('pepper-workbench').classList.add('hidden');
+  el('pepper-result').classList.remove('hidden');
+  pepperGame.stage = 5;
+  pepperUpdateProgress();
+}
+
+function resetPepperGame() {
+  if (pepperGame.timerId) window.clearInterval(pepperGame.timerId);
+  cancelPepperDryingAnimation();
+  pepperGame.stage = 1;
+  pepperGame.startedAt = performance.now();
+  pepperGame.stageStartedAt = pepperGame.startedAt;
+  pepperGame.stageTimes = [];
+  pepperGame.stageScores = [];
+  pepperGame.berries = new Set();
+  pepperGame.dryingPhase = 'door-closed';
+  pepperGame.dryingProgress = 0;
+  pepperGame.dryingScore = 100;
+  pepperGame.dryingPenalty = 0;
+  pepperGame.debrisLeft = PEPPER_DEBRIS_TOTAL;
+  pepperGame.grindClicks = 0;
+  pepperGame.soupClicks = 0;
+  pepperGame.pepperHeld = false;
+  pepperGame.done = false;
+  updatePepperTimer(0);
+  el('pepper-workbench').classList.remove('hidden');
+  el('pepper-result').classList.add('hidden');
+  pepperUpdateProgress();
+  renderPepperStage();
+  pepperGame.timerId = window.setInterval(() => {
+    if (!pepperGame.done) {
+      const seconds = (performance.now() - pepperGame.startedAt) / 1000;
+      updatePepperTimer(seconds);
+      if (seconds >= PEPPER_DISQUALIFY_SEC) pepperFinish(true);
+    }
+  }, 100);
+}
+
+function startPepperGame() {
+  showView('view-pepper');
+  window.scrollTo(0, 0);
+  resetPepperGame();
+}
+
+el('btn-pepper-intro-back').addEventListener('click', () => showView('view-mode-select'));
+el('btn-pepper-start').addEventListener('click', startPepperGame);
+el('pepper-result-restart').addEventListener('click', resetPepperGame);
+el('btn-pepper-home').addEventListener('click', () => {
+  if (pepperGame.timerId) window.clearInterval(pepperGame.timerId);
+  showView('view-mode-select');
+});
+el('pepper-result-home').addEventListener('click', () => {
+  if (pepperGame.timerId) window.clearInterval(pepperGame.timerId);
+  showView('view-mode-select');
 });
 
 // ---------- result ----------
