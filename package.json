@@ -4,7 +4,12 @@
   "description": "6-player Mafia game assistant (roles, phases, chat, voting)",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "check": "node scripts/check-syntax.js",
+    "test": "npm run check && node scripts/smoke-test.js"
+  },
+  "engines": {
+    "node": ">=20.12.0"
   },
   "dependencies": {
     "express": "^4.19.2",
