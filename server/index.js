@@ -456,6 +456,10 @@ function voteDuration(dayNumber) {
   return Math.max(VOTE_MIN_MS, DAY_VOTE_MS - (dayNumber - 1) * VOTE_STEP_MS);
 }
 
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 app.use((req, res, next) => {
   const origin = req.get('Origin');
   if (!origin) return next();
@@ -3444,5 +3448,5 @@ io.on('connection', socket => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Game server running on port ${PORT}`);
+  console.log(`Game server running on port ${server.address().port}`);
 });

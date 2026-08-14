@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mini-game-backend
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 20.12.0
+      - key: KOREAN_DICT_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DEVELOPER_PHONE
+        sync: false
